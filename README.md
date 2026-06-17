@@ -26,6 +26,12 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What .NET version is used, and does it work with newer versions?](#what-net-version-is-used-and-does-it-work-with-newer-versions)
   - [Which IDE should you use to follow the course?](#which-ide-should-you-use-to-follow-the-course)
     - [What if you use macOS or Linux?](#what-if-you-use-macos-or-linux)
+- [Unit Testing and TDD Fundamentals](#unit-testing-and-tdd-fundamentals)
+  - [What is TDD, and why does it change how you code?](#what-is-tdd-and-why-does-it-change-how-you-code)
+  - [What are unit tests, and what characteristics do they have?](#what-are-unit-tests-and-what-characteristics-do-they-have)
+  - [How do unit tests relate to TDD?](#how-do-unit-tests-relate-to-tdd)
+  - [Why do unit tests matter in your project?](#why-do-unit-tests-matter-in-your-project)
+  - [What advantages do they have over other automated tests?](#what-advantages-do-they-have-over-other-automated-tests)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -151,6 +157,52 @@ The workflow changes slightly, but the result is the same: you can create projec
 > **Does Visual Studio Code replace Visual Studio?** For this course, yes — as long as you use the .NET CLI. Terminal commands do the same job as the IDE's buttons; only the way you interact with the project changes.
 
 With these prerequisites covered, you're ready to move on to the next key question of the course: what unit tests really are, and why they matter so much for your code.
+
+## Unit Testing and TDD Fundamentals
+
+Unit tests are pieces of code that test other pieces of code, and together with the Test-Driven Development (TDD) methodology, they let you guarantee a project's quality from the very first line you write. Whether you work with .NET or any other language, understanding this concept opens the door to development that is more organized, automatable, and reliable.
+
+### What is TDD, and why does it change how you code?
+
+Before writing your first unit test, you need to understand the framework that supports them. **TDD** stands for **Test-Driven Development**, a workflow methodology where you write the tests first and implement the code afterward.
+
+It sounds strange, but it makes sense: thanks to user stories, you already know what your code should do, what calculations it should perform, what information it should return, and in which scenarios. With that information you build tests that, at first, will fail because the implementation doesn't exist yet. Your goal at that point is simply to make sure the tests themselves are well structured.
+
+Then you write the real code and do whatever is needed to make each test pass. Whenever new logic appears — a different user story or a scenario you hadn't considered — you enter a constant refactor cycle: add tests, fail again, implement again, pass again. And that's the cycle you stay in for good.
+
+> **What is TDD in programming?** It's a methodology where you write the tests first, based on the requirements, and then implement the code until those tests pass.
+
+### What are unit tests, and what characteristics do they have?
+
+This is where the piece that supports the whole methodology comes in. **Unit tests** are tests performed on small units of code: a property, a function, or a method.
+
+To work properly within a TDD flow, they need three characteristics that make them powerful:
+
+- **Automatable** — you can run them at any time without manual intervention, which lets you verify the code constantly.
+- **Reusable** — the same test can validate different scenarios.
+- **Independent** — they don't depend on databases, external services like AWS or Azure, or other parts of the system.
+
+This independence is one of the trickier challenges. If your code connects to an external service, you need to simulate that connection so you can focus on what you actually want to test: the business logic, the math operations, the calculations, and the conditions in your code.
+
+### How do unit tests relate to TDD?
+
+Unit tests are the vehicle that makes TDD possible. Without them, you couldn't run fast, repeatable validations against your code. With them, every change you make passes through an automatic filter that tells you whether you broke something or whether the new logic affects behavior that was already established.
+
+> **What are unit tests for?** They verify, in an automated way, that each unit of your code (a function, method, or property) does exactly what's expected — even after changes or refactors.
+
+### Why do unit tests matter in your project?
+
+The real value of unit tests is the speed at which they show you the health of your code. You make a change, run the tests, and within seconds you know whether you broke part of the business logic or whether everything still works as expected.
+
+There's another point worth highlighting: unit tests are written by the developers themselves, not by external QA or automation teams. That makes them much closer to the real code and much easier to weave into the daily development workflow.
+
+### What advantages do they have over other automated tests?
+
+Compared to automated tests that use frameworks like Selenium or Cypress, unit tests are much easier to implement. Each type of test focuses on a different aspect of the software, but the strength of unit tests lies precisely in their simplicity and in how fast they give you feedback.
+
+To write them you'll always rely on a library — there are hundreds of options across the development world, and every language has its own. For .NET, there are a few concrete alternatives worth knowing before you write your first test (this repo uses **xUnit**; see [Tech Stack](#tech-stack)).
+
+> 📚 Suggested resource from this lesson: *Unit Testing Succinctly* (free ebook).
 
 ## Module Roadmap
 
