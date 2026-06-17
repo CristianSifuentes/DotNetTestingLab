@@ -32,6 +32,11 @@ Each course module lives on its own branch and builds on top of the previous one
   - [How do unit tests relate to TDD?](#how-do-unit-tests-relate-to-tdd)
   - [Why do unit tests matter in your project?](#why-do-unit-tests-matter-in-your-project)
   - [What advantages do they have over other automated tests?](#what-advantages-do-they-have-over-other-automated-tests)
+- [Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit](#unit-testing-libraries-in-net-mstest-nunit-and-xunit)
+  - [What is MSTest, and what are its advantages?](#what-is-mstest-and-what-are-its-advantages)
+  - [What are the characteristics of NUnit?](#what-are-the-characteristics-of-nunit)
+  - [What makes xUnit different from the rest?](#what-makes-xunit-different-from-the-rest)
+  - [How are tests implemented in xUnit?](#how-are-tests-implemented-in-xunit)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -203,6 +208,36 @@ Compared to automated tests that use frameworks like Selenium or Cypress, unit t
 To write them you'll always rely on a library — there are hundreds of options across the development world, and every language has its own. For .NET, there are a few concrete alternatives worth knowing before you write your first test (this repo uses **xUnit**; see [Tech Stack](#tech-stack)).
 
 > 📚 Suggested resource from this lesson: *Unit Testing Succinctly* (free ebook).
+
+## Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit
+
+Before diving into unit testing in .NET, it's worth understanding the different libraries available for writing and running tests. There are several solid options and, although each has its own particularities, they all offer great capabilities. This course settles on one in particular, but it's worth knowing the alternatives.
+
+### What is MSTest, and what are its advantages?
+
+**MSTest** — also known as Microsoft Test — is a library with strong backing from Microsoft, and one of the first to appear in .NET Framework. Its integration with Visual Studio stands out, which makes the unit testing process easier for teams already working with Microsoft technologies. That said, it can feel heavier in scenarios where you need simpler tests, or where the code is already well structured and decoupled.
+
+### What are the characteristics of NUnit?
+
+**NUnit** takes its inspiration from JUnit, the well-known Java library, replicating much of its functionality. It's open source and enjoys massive community support. Some of its advantages include:
+
+- Simplicity of use — tests can be written with very little code.
+- Extensive documentation, tutorials, and guides, thanks to its active community.
+- Its resemblance to JUnit gives developers with Java experience a faster learning curve.
+
+### What makes xUnit different from the rest?
+
+**xUnit** is probably the most innovative of the three, born out of community effort and former members of Microsoft's own teams. It's also open source and is strongly preferred in modern .NET Core projects and in microservices and cloud-based architectures. This library stands out for:
+
+- Simplifying the process of creating unit tests.
+- Its use of the `[Fact]` attribute, which turns an ordinary method into a unit test just by adding that attribute.
+- Efficient execution and verification of business logic through assertions.
+
+### How are tests implemented in xUnit?
+
+Implementing unit tests in xUnit is remarkably intuitive: you use the `[Fact]` attribute to mark a method as a test, and inside it you use assertions to validate the expected behavior of your code. This ease of use is the main reason **xUnit** was chosen as the testing library for this course (see [Tech Stack](#tech-stack) and the example under [Example unit test in C#](#example-unit-test-in-c)).
+
+> 🔗 **Resources from this lesson:** [NUnit.org](https://nunit.org/) · [xUnit.net](https://xunit.net/) · *Unit testing C# with MSTest and .NET* (Microsoft Learn)
 
 ## Module Roadmap
 
