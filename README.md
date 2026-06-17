@@ -1,2 +1,2 @@
-# DotNetTestingLab
-Write unit tests in C# with .NET to ensure your applications function correctly. Learn to simulate dependencies with Moq and measure coverage with Coverlet. Ideal for improving software quality.
+## Base code to complete the unit testing course in .NET and C# with xUnit
+You must download the code and use the master or 0-codigobase branch
