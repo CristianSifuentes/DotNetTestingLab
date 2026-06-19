@@ -74,6 +74,7 @@ Each course module lives on its own branch and builds on top of the previous one
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
   - [Module 1 — First Test](#module-1--first-test)
+  - [Module 2 — Types Assert](#module-2--types-assert)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -662,7 +663,7 @@ Rewrite `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test funct
 |:------:|----------------|------------------------------------------|:-------------:|
 | 0      | `0-codebase`   | Base code — string utilities console app, no tests yet | ✅ Done |
 | 1      | `1-firsttest`  | First xUnit test project — `StringManipulation.Tests` scaffolded and wired via `ProjectReference` | ✅ Done |
-| 2      | `2-...`        | _To be announced_                        | 📌 Planned     |
+| 2      | `2-types-assert` | AAA convention + multi-assert tests — `Assert.NotNull`/`NotEmpty`/`Equal` and the `IsPalindrome_True`/`_False` boolean pair | ✅ Done |
 | 3      | `3-...`        | _To be announced_                        | 📌 Planned     |
 | 4      | `4-...`        | _To be announced_                        | 📌 Planned     |
 | 5      | `5-...`        | _To be announced_                        | 📌 Planned     |
@@ -685,7 +686,7 @@ DotNetTestingLab/
 │   └── information.txt                 # Sample data file used by the "read file" option
 └── StringManipulation.Tests/           # Module 1 — first xUnit test project
     ├── StringManipulation.Tests.csproj # net8.0, ProjectReference -> StringManipulation.csproj
-    ├── StringOperationsTest.cs         # First real [Fact]: ConcatenateStrings
+    ├── StringOperationsTest.cs         # ConcatenateStrings (Module 1) + IsPalindrome_True/_False (Module 2)
     ├── UnitTest1.cs                    # Default xUnit template scaffold (unused, left as-is)
     └── Usings.cs                       # global using Xunit;
 ```
@@ -724,6 +725,27 @@ Branch [`1-firsttest`](https://github.com/CristianSifuentes/DotNetTestingLab/tre
 - **Changed** — `StringManipulation.Tests.csproj`'s `TargetFramework` moved `net7.0` → `net8.0` within the module itself (`0af72a3`), correcting a template default so the test project's TFM matches `StringManipulation.csproj` (see [What .NET version is used, and does it work with newer versions?](#what-net-version-is-used-and-does-it-work-with-newer-versions)).
 - **Unchanged** — every file under `StringManipulation/` (`Program.cs`, `StringOperations.cs`, `IFileReaderConnector.cs`, `information.txt`) is byte-for-byte identical to Module 0. This module adds test coverage without touching production code, the same separation of concerns described in [Why separate the test project from the main project?](#why-separate-the-test-project-from-the-main-project).
 - **Not wired up** — `StringManipulation/StringManipulation.sln` was **not** updated to include `StringManipulation.Tests`; the `.sln` is byte-for-byte identical to Module 0. In practice, `dotnet test` still works from the `StringManipulation.Tests/` folder (or by pointing at its `.csproj` directly), but opening `StringManipulation.sln` in Visual Studio won't show the test project in Solution Explorer. That's a real discrepancy from the combined-solution walkthrough in [How do you set this up from the .NET CLI (Visual Studio Code)?](#how-do-you-set-this-up-from-the-net-cli-visual-studio-code) — worth closing with a `dotnet sln add` in a later module.
+
+### Module 2 — Types Assert
+
+Branch [`2-types-assert`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/2-types-assert) adds no new project — it deepens the single test file from Module 1, `StringOperationsTest.cs`, putting the **AAA structure** into explicit inline comments and introducing **multi-assert tests** and the **boolean true/false pairing pattern**. Two commits carry the module:
+
+| Commit | Message | What it actually did |
+|--------|---------|------------------------|
+| `2d31099` | Add info for Best Practices and Assert Types in xUnit | Documents AAA, the FIRST principles, multi-assert tests, and the true/false naming convention in the new [Best Practices and Assert Types in xUnit](#best-practices-and-assert-types-in-xunit) lesson — README only, no code changes. |
+| `b017255` | Adding new code in StringOperationsTest | Implements what the lesson documents: strengthens `ConcatenateStrings` with two extra assertions and adds `IsPalindrome_True` / `IsPalindrome_False` as two independent `[Fact]` tests. |
+
+| File | Change |
+|------|--------|
+| `StringOperationsTest.cs` | `ConcatenateStrings` gains `// Act` / `// Assert` comments and two assertions inserted **ahead of** the original `Assert.Equal("Hello World", result)`: `Assert.NotNull(result)` and `Assert.NotEmpty(result)` (see [How do you cover more scenarios with multiple asserts?](#how-do-you-cover-more-scenarios-with-multiple-asserts)). Two new `[Fact]` tests are added — `IsPalindrome_True` (`IsPalindrome("ama")` → `Assert.True`) and `IsPalindrome_False` (`IsPalindrome("hello")` → `Assert.False`) — one method per boolean outcome, following the `Method_Scenario` naming convention from [How do you test functions that return true or false?](#how-do-you-test-functions-that-return-true-or-false). |
+
+**Evolutionary changes vs. Module 1:**
+
+- **Changed** — `StringOperationsTest.cs` only (+30 lines, 0 deletions). Every other file — `UnitTest1.cs`, `Usings.cs`, both `.csproj` files, and everything under `StringManipulation/` — is byte-for-byte identical to Module 1.
+- **Test count** — went from 1 discoverable `[Fact]` (`ConcatenateStrings`) to 3 (`ConcatenateStrings`, `IsPalindrome_True`, `IsPalindrome_False`), plus the still-unused template `UnitTest1.Test1` carried over from Module 1.
+- **Depth, not breadth, on the existing test** — `ConcatenateStrings` wasn't rewritten; the original `Assert.Equal` line is untouched, and the new `Assert.NotNull`/`Assert.NotEmpty` calls were layered in front of it, so a future failure narrows down to "wrong value" only once "null" and "empty" are already ruled out.
+- **Inconsistent AAA comments** — `b017255` adds `// Act` and `// Assert` to `ConcatenateStrings` but not `// Arrange` (the `var strOperations = new StringOperations();` line stays uncommented), while both new `IsPalindrome_*` tests carry all three. A cosmetic inconsistency, not a functional one — worth a follow-up cleanup pass.
+- **Lesson ahead of test coverage** — the README's [What happens if you force a test to fail?](#what-happens-if-you-force-a-test-to-fail) and the [`RemoveWhitespace` practice challenge](#practice-challenge-testing-removewhitespace) are documented in this module's lesson text, but neither has a corresponding test committed to `StringOperationsTest.cs` yet — they're left as an exercise for whoever picks up the next module.
 
 ## Features
 
