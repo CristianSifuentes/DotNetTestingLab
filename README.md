@@ -75,6 +75,7 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Module 0 — Codebase](#module-0--codebase)
   - [Module 1 — First Test](#module-1--first-test)
   - [Module 2 — Types Assert](#module-2--types-assert)
+  - [Module 3 — Types Assert 2](#module-3--types-assert-2)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -664,7 +665,7 @@ Rewrite `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test funct
 | 0      | `0-codebase`   | Base code — string utilities console app, no tests yet | ✅ Done |
 | 1      | `1-firsttest`  | First xUnit test project — `StringManipulation.Tests` scaffolded and wired via `ProjectReference` | ✅ Done |
 | 2      | `2-types-assert` | AAA convention + multi-assert tests — `Assert.NotNull`/`NotEmpty`/`Equal` and the `IsPalindrome_True`/`_False` boolean pair | ✅ Done |
-| 3      | `3-...`        | _To be announced_                        | 📌 Planned     |
+| 3      | `3-types-assert2` | `StartsWith`/`Contains`/`Throws` — `QuantintyInWords` and `GetStringLength_Exception` | ✅ Done |
 | 4      | `4-...`        | _To be announced_                        | 📌 Planned     |
 | 5      | `5-...`        | _To be announced_                        | 📌 Planned     |
 
@@ -686,7 +687,7 @@ DotNetTestingLab/
 │   └── information.txt                 # Sample data file used by the "read file" option
 └── StringManipulation.Tests/           # Module 1 — first xUnit test project
     ├── StringManipulation.Tests.csproj # net8.0, ProjectReference -> StringManipulation.csproj
-    ├── StringOperationsTest.cs         # ConcatenateStrings (Module 1) + IsPalindrome_True/_False (Module 2)
+    ├── StringOperationsTest.cs         # +ConcatenateStrings/IsPalindrome (M1-2) +QuantintyInWords/GetStringLength_Exception (M3)
     ├── UnitTest1.cs                    # Default xUnit template scaffold (unused, left as-is)
     └── Usings.cs                       # global using Xunit;
 ```
@@ -746,6 +747,23 @@ Branch [`2-types-assert`](https://github.com/CristianSifuentes/DotNetTestingLab/
 - **Depth, not breadth, on the existing test** — `ConcatenateStrings` wasn't rewritten; the original `Assert.Equal` line is untouched, and the new `Assert.NotNull`/`Assert.NotEmpty` calls were layered in front of it, so a future failure narrows down to "wrong value" only once "null" and "empty" are already ruled out.
 - **Inconsistent AAA comments** — `b017255` adds `// Act` and `// Assert` to `ConcatenateStrings` but not `// Arrange` (the `var strOperations = new StringOperations();` line stays uncommented), while both new `IsPalindrome_*` tests carry all three. A cosmetic inconsistency, not a functional one — worth a follow-up cleanup pass.
 - **Lesson ahead of test coverage** — the README's [What happens if you force a test to fail?](#what-happens-if-you-force-a-test-to-fail) and the [`RemoveWhitespace` practice challenge](#practice-challenge-testing-removewhitespace) are documented in this module's lesson text, but neither has a corresponding test committed to `StringOperationsTest.cs` yet — they're left as an exercise for whoever picks up the next module.
+
+### Module 3 — Types Assert 2
+
+Branch [`3-types-assert2`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/3-types-assert2) is a single commit, `443acf0`, that does two things at once: it adds the [Testing with StartsWith, Contains, and Throws](#testing-with-startswith-contains-and-throws) lesson to the README, and it implements the two tests that lesson describes — `QuantintyInWords` and `GetStringLength_Exception` — in `StringOperationsTest.cs`. Like Module 2, no project files change; only the test file grows (+23 lines, 0 deletions).
+
+| File | Change |
+|------|--------|
+| `StringOperationsTest.cs` | Two new `[Fact]` tests appended after `IsPalindrome_False`: `QuantintyInWords` calls `QuantintyInWords("cat", 10)` and checks the result two ways — `Assert.StartsWith("ten", result)` and `Assert.Contains("cat", result)` — instead of a single `Assert.Equal`, per [How do you test that a string starts with a given word?](#how-do-you-test-that-a-string-starts-with-a-given-word). `GetStringLength_Exception` wraps `GetStringLength(null)` in a lambda and asserts it throws, confirming the guard clause in `StringOperations.GetStringLength` (see [Features](#features)). |
+
+**Evolutionary changes vs. Module 2:**
+
+- **Changed** — `StringOperationsTest.cs` only (+23 lines). `UnitTest1.cs`, `Usings.cs`, both `.csproj` files, the `.sln`, and every file under `StringManipulation/` remain byte-for-byte identical to Module 2.
+- **Test count** — went from 3 discoverable `[Fact]` tests to 5: `ConcatenateStrings`, `IsPalindrome_True`, `IsPalindrome_False`, `QuantintyInWords`, `GetStringLength_Exception` (plus the still-unused `UnitTest1.Test1`).
+- **New assertion vocabulary** — this is the first module to move past `Assert.Equal`/`Assert.True`/`Assert.NotNull`/`Assert.NotEmpty`: `Assert.StartsWith` and `Assert.Contains` validate a *fragment* of the result rather than the whole string, and `GetStringLength_Exception` is the first exception-path test in the suite.
+- **Code vs. README drift on the exception assertion** — the committed test calls `Assert.ThrowsAny<ArgumentNullException>(...)`, but the README's code sample for the same test (in [How do you test that a function throws an exception?](#how-do-you-test-that-a-function-throws-an-exception)) shows `Assert.Throws<ArgumentNullException>(...)`. They behave the same here only because `StringOperations.GetStringLength` throws the exact type `ArgumentNullException` and not a subclass — `Throws<T>` requires an exact type match, while `ThrowsAny<T>` also accepts derived exception types. Worth reconciling so the documented snippet matches the real assertion used.
+- **AAA comments still inconsistent** — `QuantintyInWords` keeps `// Arrange` / `// Act` / `//Assert` (note the missing space before `Assert`, unlike every other test's `// Assert`), while `GetStringLength_Exception` has no AAA comments at all — consistent with the pattern from Module 2 ([Can you still apply AAA in exception tests?](#can-you-still-apply-aaa-in-exception-tests) explains why exception tests skip the **Act** step, but the missing **Arrange** comment here is just an omission).
+- **Practice challenge still open** — [Practice challenge: testing TruncateString](#practice-challenge-testing-truncatestring) is documented but, like Module 2's `RemoveWhitespace` challenge, has no test in `StringOperationsTest.cs` yet.
 
 ## Features
 
