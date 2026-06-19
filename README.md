@@ -16,6 +16,32 @@ Each course module lives on its own branch and builds on top of the previous one
 ## Table of Contents
 
 - [About the Project](#about-the-project)
+- [Course Overview](#course-overview)
+  - [What is a .NET unit testing course?](#what-is-a-net-unit-testing-course)
+  - [How do you implement unit tests in a string manipulation project?](#how-do-you-implement-unit-tests-in-a-string-manipulation-project)
+  - [What are the benefits of refactoring with unit tests?](#what-are-the-benefits-of-refactoring-with-unit-tests)
+  - [Why is this course essential for your career?](#why-is-this-course-essential-for-your-career)
+- [Course Prerequisites](#course-prerequisites)
+  - [What prior knowledge do you need for this course?](#what-prior-knowledge-do-you-need-for-this-course)
+  - [What .NET version is used, and does it work with newer versions?](#what-net-version-is-used-and-does-it-work-with-newer-versions)
+  - [Which IDE should you use to follow the course?](#which-ide-should-you-use-to-follow-the-course)
+    - [What if you use macOS or Linux?](#what-if-you-use-macos-or-linux)
+- [Unit Testing and TDD Fundamentals](#unit-testing-and-tdd-fundamentals)
+  - [What is TDD, and why does it change how you code?](#what-is-tdd-and-why-does-it-change-how-you-code)
+  - [What are unit tests, and what characteristics do they have?](#what-are-unit-tests-and-what-characteristics-do-they-have)
+  - [How do unit tests relate to TDD?](#how-do-unit-tests-relate-to-tdd)
+  - [Why do unit tests matter in your project?](#why-do-unit-tests-matter-in-your-project)
+  - [What advantages do they have over other automated tests?](#what-advantages-do-they-have-over-other-automated-tests)
+- [Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit](#unit-testing-libraries-in-net-mstest-nunit-and-xunit)
+  - [What is MSTest, and what are its advantages?](#what-is-mstest-and-what-are-its-advantages)
+  - [What are the characteristics of NUnit?](#what-are-the-characteristics-of-nunit)
+  - [What makes xUnit different from the rest?](#what-makes-xunit-different-from-the-rest)
+  - [How are tests implemented in xUnit?](#how-are-tests-implemented-in-xunit)
+- [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit)
+  - [Why separate the test project from the main project?](#why-separate-the-test-project-from-the-main-project)
+  - [How do you name testing projects and classes?](#how-do-you-name-testing-projects-and-classes)
+  - [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step)
+  - [How do you run tests from Test Explorer?](#how-do-you-run-tests-from-test-explorer)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -37,6 +63,260 @@ Each course module lives on its own branch and builds on top of the previous one
 `DotNetTestingLab` is the hands-on lab used throughout the course. It starts as a small **console application** that performs a series of string manipulation operations (`StringManipulation` project) — deliberately written **without any tests**.
 
 As the course progresses through modules `1` to `5`, this same codebase is incrementally covered with **xUnit** tests, illustrating concepts such as test structure (Arrange/Act/Assert), test doubles, mocking, parameterized tests, code coverage, and CI integration.
+
+## Course Overview
+
+### What is a .NET unit testing course?
+
+In the exciting world of software development, unit tests play a vital role in ensuring the quality and stability of code. This course takes you into the world of unit testing in .NET, teaching you to build small pieces of code that exercise the logic of your applications, helping you keep a high standard of quality across your projects. You will learn to manipulate strings and to use Visual Studio to run automated tests, making sure your code works correctly before it ever reaches production.
+
+### How do you implement unit tests in a string manipulation project?
+
+#### Understanding the project
+
+Throughout the course we work on a project that involves several string operations — a fundamental building block in many applications (see [Features](#features)). These hands-on exercises not only help you understand how tests work, but also serve as practice tasks so you can apply what you've learned yourself. This practical approach is key to building a deep, applicable understanding.
+
+#### Writing tests in Visual Studio
+
+Visual Studio is our main tool for creating and running tests. In a `StringOperationsTest` class, you'll find several tests implemented for the `StringOperations` class (see [Module 0 — Codebase](#module-0--codebase)). These tests run automatically through **Test Explorer**, a powerful Visual Studio feature that discovers and executes tests, clearly showing whether the code passes or fails.
+
+#### Example unit test in C#
+
+Here's a snippet showing how a function becomes a unit test:
+
+```csharp
+[Fact]
+public void ConcatenateStringsTest()
+{
+    var result = new StringOperations().ConcatenateStrings("Hello", "Plexi");
+    Assert.Equal("Hello Plexi", result);
+}
+```
+
+This simple snippet shows how the `[Fact]` attribute (xUnit's equivalent of NUnit/MSTest's `[Test]`) marks a method as a unit test, and how assertion methods are used to verify that the result meets expectations.
+
+### What are the benefits of refactoring with unit tests?
+
+#### Refactoring safely
+
+Refactoring is a systematic process aimed at improving code quality without changing its behavior. In the course, you'll see how `ConcatenateStrings` is refactored to use **string interpolation**, going from:
+
+```csharp
+public string ConcatenateStrings(string str1, string str2)
+{
+    return str1 + " " + str2;
+}
+```
+
+to:
+
+```csharp
+public string ConcatenateStrings(string str1, string str2)
+{
+    return $"{str1} {str2}";
+}
+```
+
+Modifying and improving code is much safer with unit tests in place, since they confirm that your changes haven't broken existing functionality.
+
+#### Catching and fixing bugs
+
+During a refactor it's easy to introduce a mistake that leads to a failing test — for instance, forgetting the space between the two values. Situations like this demonstrate the real value of unit tests: they stop bugs from propagating into production. Once the issue is identified, it only takes a small fix (restoring the missing space) and a re-run of the tests to confirm that everything passes again and the functionality is intact.
+
+### Why is this course essential for your career?
+
+This course gives you the tools to approach any software project with confidence. You'll learn how to design unit tests that strengthen the quality of your applications, and you'll pick up essential refactoring skills — a crucial part of every developer's day-to-day work. With all of this in your toolkit, you'll be ready to take on the challenges of modern software development. Keep going, and never stop learning!
+
+## Course Prerequisites
+
+Before diving into unit testing with C# and .NET, it's worth confirming you have everything in place to follow the course smoothly. Here's the prior knowledge, framework versions, and recommended tooling so you can move forward with confidence from the very first class.
+
+### What prior knowledge do you need for this course?
+
+The starting point is clear: you need a working knowledge of the language and the framework before writing your first test.
+
+- C# as a programming language.
+- .NET as a development framework.
+- Solid foundations in object-oriented programming (OOP) in C#.
+
+If you feel any of these pillars are missing, don't worry — there are dedicated courses for each of these topics you can take beforehand to arrive prepared.
+
+> **Do I need to know object-oriented programming to take this course?** Yes. OOP in C# is the foundation unit testing is built on, so you should be comfortable with concepts such as classes, objects, inheritance, and encapsulation.
+
+### What .NET version is used, and does it work with newer versions?
+
+The course was originally recorded on **.NET 7**, the latest release available at the time of recording. Here's the important part: .NET is **backward compatible**, so everything you learn also applies to newer versions such as .NET 8, .NET 9, or .NET 10.
+
+This means you can follow the course even if your own environment runs a newer version — the concepts, test syntax, and logic you apply remain valid. In fact, this repository itself has already been upgraded to **.NET 8** (see [Tech Stack](#tech-stack)) without changing any of the testing concepts described here.
+
+> **What does it mean for .NET to be backward compatible?** It means code written for an older version keeps working on newer versions, so your learning doesn't become obsolete when you switch versions.
+
+### Which IDE should you use to follow the course?
+
+The official IDE for the course is **Visual Studio 2022**, the latest version at the time of recording. It's the recommended tool because it natively integrates everything you need to create, run, and debug unit tests in .NET.
+
+#### What if you use macOS or Linux?
+
+If your operating system doesn't support Visual Studio, the alternative is **Visual Studio Code** together with the **.NET CLI**. With this combination you run terminal commands that do exactly what you would otherwise do from the Visual Studio graphical interface (see [Run the Console App](#run-the-console-app) for the CLI commands used in this repo).
+
+- **On Windows:** Visual Studio 2022, with its full IDE experience.
+- **On macOS or Linux:** Visual Studio Code plus the .NET CLI to run commands from the terminal.
+
+The workflow changes slightly, but the result is the same: you can create projects, add packages, and run tests without losing any functionality.
+
+> **Does Visual Studio Code replace Visual Studio?** For this course, yes — as long as you use the .NET CLI. Terminal commands do the same job as the IDE's buttons; only the way you interact with the project changes.
+
+With these prerequisites covered, you're ready to move on to the next key question of the course: what unit tests really are, and why they matter so much for your code.
+
+## Unit Testing and TDD Fundamentals
+
+Unit tests are pieces of code that test other pieces of code, and together with the Test-Driven Development (TDD) methodology, they let you guarantee a project's quality from the very first line you write. Whether you work with .NET or any other language, understanding this concept opens the door to development that is more organized, automatable, and reliable.
+
+### What is TDD, and why does it change how you code?
+
+Before writing your first unit test, you need to understand the framework that supports them. **TDD** stands for **Test-Driven Development**, a workflow methodology where you write the tests first and implement the code afterward.
+
+It sounds strange, but it makes sense: thanks to user stories, you already know what your code should do, what calculations it should perform, what information it should return, and in which scenarios. With that information you build tests that, at first, will fail because the implementation doesn't exist yet. Your goal at that point is simply to make sure the tests themselves are well structured.
+
+Then you write the real code and do whatever is needed to make each test pass. Whenever new logic appears — a different user story or a scenario you hadn't considered — you enter a constant refactor cycle: add tests, fail again, implement again, pass again. And that's the cycle you stay in for good.
+
+> **What is TDD in programming?** It's a methodology where you write the tests first, based on the requirements, and then implement the code until those tests pass.
+
+### What are unit tests, and what characteristics do they have?
+
+This is where the piece that supports the whole methodology comes in. **Unit tests** are tests performed on small units of code: a property, a function, or a method.
+
+To work properly within a TDD flow, they need three characteristics that make them powerful:
+
+- **Automatable** — you can run them at any time without manual intervention, which lets you verify the code constantly.
+- **Reusable** — the same test can validate different scenarios.
+- **Independent** — they don't depend on databases, external services like AWS or Azure, or other parts of the system.
+
+This independence is one of the trickier challenges. If your code connects to an external service, you need to simulate that connection so you can focus on what you actually want to test: the business logic, the math operations, the calculations, and the conditions in your code.
+
+### How do unit tests relate to TDD?
+
+Unit tests are the vehicle that makes TDD possible. Without them, you couldn't run fast, repeatable validations against your code. With them, every change you make passes through an automatic filter that tells you whether you broke something or whether the new logic affects behavior that was already established.
+
+> **What are unit tests for?** They verify, in an automated way, that each unit of your code (a function, method, or property) does exactly what's expected — even after changes or refactors.
+
+### Why do unit tests matter in your project?
+
+The real value of unit tests is the speed at which they show you the health of your code. You make a change, run the tests, and within seconds you know whether you broke part of the business logic or whether everything still works as expected.
+
+There's another point worth highlighting: unit tests are written by the developers themselves, not by external QA or automation teams. That makes them much closer to the real code and much easier to weave into the daily development workflow.
+
+### What advantages do they have over other automated tests?
+
+Compared to automated tests that use frameworks like Selenium or Cypress, unit tests are much easier to implement. Each type of test focuses on a different aspect of the software, but the strength of unit tests lies precisely in their simplicity and in how fast they give you feedback.
+
+To write them you'll always rely on a library — there are hundreds of options across the development world, and every language has its own. For .NET, there are a few concrete alternatives worth knowing before you write your first test (this repo uses **xUnit**; see [Tech Stack](#tech-stack)).
+
+> 📚 Suggested resource from this lesson: *Unit Testing Succinctly* (free ebook).
+
+## Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit
+
+Before diving into unit testing in .NET, it's worth understanding the different libraries available for writing and running tests. There are several solid options and, although each has its own particularities, they all offer great capabilities. This course settles on one in particular, but it's worth knowing the alternatives.
+
+### What is MSTest, and what are its advantages?
+
+**MSTest** — also known as Microsoft Test — is a library with strong backing from Microsoft, and one of the first to appear in .NET Framework. Its integration with Visual Studio stands out, which makes the unit testing process easier for teams already working with Microsoft technologies. That said, it can feel heavier in scenarios where you need simpler tests, or where the code is already well structured and decoupled.
+
+### What are the characteristics of NUnit?
+
+**NUnit** takes its inspiration from JUnit, the well-known Java library, replicating much of its functionality. It's open source and enjoys massive community support. Some of its advantages include:
+
+- Simplicity of use — tests can be written with very little code.
+- Extensive documentation, tutorials, and guides, thanks to its active community.
+- Its resemblance to JUnit gives developers with Java experience a faster learning curve.
+
+### What makes xUnit different from the rest?
+
+**xUnit** is probably the most innovative of the three, born out of community effort and former members of Microsoft's own teams. It's also open source and is strongly preferred in modern .NET Core projects and in microservices and cloud-based architectures. This library stands out for:
+
+- Simplifying the process of creating unit tests.
+- Its use of the `[Fact]` attribute, which turns an ordinary method into a unit test just by adding that attribute.
+- Efficient execution and verification of business logic through assertions.
+
+### How are tests implemented in xUnit?
+
+Implementing unit tests in xUnit is remarkably intuitive: you use the `[Fact]` attribute to mark a method as a test, and inside it you use assertions to validate the expected behavior of your code. This ease of use is the main reason **xUnit** was chosen as the testing library for this course (see [Tech Stack](#tech-stack) and the example under [Example unit test in C#](#example-unit-test-in-c)).
+
+> 🔗 **Resources from this lesson:** [NUnit.org](https://nunit.org/) · [xUnit.net](https://xunit.net/) · *Unit testing C# with MSTest and .NET* (Microsoft Learn)
+
+## Creating Your First Unit Test with xUnit
+
+Writing your first unit test is simpler than it looks once you understand the project structure, the naming conventions, and how the `[Fact]` attribute works. This is the lesson where the test project for `StringManipulation` gets set up, the first test gets written, and it gets executed from Visual Studio to confirm the code does what it should.
+
+### Why separate the test project from the main project?
+
+A good practice in .NET development is to keep tests in their own project and reference the project under test from there. Mixing business logic with tests creates unnecessary coupling and complicates deployment.
+
+In Visual Studio, within the same solution, you add a new project with **Add > New Project**. Filtering by the word "Test" surfaces the official templates: **MSTest**, **NUnit**, and **xUnit**. These templates ship with all the required libraries preinstalled, which saves you the manual setup.
+
+> **Can I use a regular Class Library instead of the Test template?** Yes. You can create a Class Library and manually add the xUnit NuGet packages — the template only automates that step.
+
+### How do you name testing projects and classes?
+
+.NET has a clear community standard for naming test projects and classes. Following it means any developer can understand your structure at a glance.
+
+- The **test project** takes the name of the project under test plus the plural word **Tests** — e.g., `StringManipulation.Tests` for the `StringManipulation` project in this repo.
+- The **test class** takes the name of the class under test plus the singular word **Test** — e.g., `StringOperationsTest` for the `StringOperations` class (see [Module 0 — Codebase](#module-0--codebase)).
+- The class **must be `public`**. Visual Studio scaffolds it as `internal` by default, which silently keeps the runner from executing the tests.
+
+After creating the project from the **xUnit Test Project** template and picking a target framework (this repo targets **.NET 8**; see [Tech Stack](#tech-stack)), you add a project reference to `StringManipulation`. Without that reference you can't import `StringOperations` or call its methods.
+
+### How do you write a unit test step by step?
+
+Every unit test follows the same three beats: **Arrange** the object, **Act** on it, and **Assert** the result. In xUnit, turning a method into a test is as simple as adding the `[Fact]` attribute above it:
+
+```csharp
+using Xunit;
+
+public class StringOperationsTest
+{
+    [Fact]
+    public void ConcatenateStrings()
+    {
+        // Arrange
+        var strOperations = new StringOperations();
+
+        // Act
+        var result = strOperations.ConcatenateStrings("Hello", "Platzi");
+
+        // Assert
+        Assert.Equal("Hello Platzi", result);
+    }
+}
+```
+
+Breaking down what happens there:
+
+1. An instance of `StringOperations` is created with `new`.
+2. `ConcatenateStrings` is called with two strings: `"Hello"` and `"Platzi"`.
+3. The result is compared against the expected value with `Assert.Equal`.
+
+`Assert` is the xUnit class that performs the actual check. `Assert.Equal` takes the **expected** value first and the **actual** value second — if they match, the test passes.
+
+> **What does the `[Fact]` attribute do?** It turns a regular method into a unit test that the runner can discover and execute. Without it, xUnit ignores the method entirely.
+
+> **Why must the test class be `public`?** Because xUnit's runner can only access public classes. An `internal` class won't run its tests, even if its methods carry `[Fact]`.
+
+### How do you run tests from Test Explorer?
+
+Visual Studio ships with **Test Explorer**, a tool that automatically discovers every test in the solution. If it's not visible, enable it from **View > Test Explorer**.
+
+From there you can:
+
+- Run every test in the project with a single click.
+- Run an individual test by selecting it and pressing **Run**.
+- See the result in green when it passes, or red when it fails.
+
+A green result means the method's behavior matches what you expected. Changing the expected value — say, adding an extra space — turns the test red. That's the core value of unit testing: it catches the moment a code change breaks previously working logic, without you having to review everything by hand.
+
+Once this structure is in place, adding tests for the rest of `StringOperations`'s methods (see [Features](#features)) is just a matter of repeating Arrange-Act-Assert and letting Test Explorer do the rest.
+
+> 🔗 **Resource from this lesson:** [platzi/curso-unit-testing-csharp](https://github.com/platzi/curso-unit-testing-csharp) at branch `1-primeraprueba`.
 
 ## Module Roadmap
 
