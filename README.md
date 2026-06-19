@@ -39,6 +39,7 @@ Each course module lives on its own branch and builds on top of the previous one
   - [How are tests implemented in xUnit?](#how-are-tests-implemented-in-xunit)
 - [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit)
   - [Why separate the test project from the main project?](#why-separate-the-test-project-from-the-main-project)
+  - [How do you set this up from the .NET CLI (Visual Studio Code)?](#how-do-you-set-this-up-from-the-net-cli-visual-studio-code)
   - [How do you name testing projects and classes?](#how-do-you-name-testing-projects-and-classes)
   - [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step)
   - [How do you run tests from Test Explorer?](#how-do-you-run-tests-from-test-explorer)
@@ -256,6 +257,31 @@ In Visual Studio, within the same solution, you add a new project with **Add > N
 
 > **Can I use a regular Class Library instead of the Test template?** Yes. You can create a Class Library and manually add the xUnit NuGet packages — the template only automates that step.
 
+### How do you set this up from the .NET CLI (Visual Studio Code)?
+
+If you're following along in **Visual Studio Code** instead of Visual Studio (see [What if you use macOS or Linux?](#what-if-you-use-macos-or-linux)), the [.NET CLI](https://learn.microsoft.com/dotnet/core/tools/) does exactly what the IDE's menus do, as terminal commands run from the repository root:
+
+```bash
+# 1. Create a solution file alongside the library project's folder
+dotnet new sln --name UnitTestingNetCSharp
+
+# 2. Create the xUnit test project
+dotnet new xunit -o StringManipulationTest
+
+# 3. Add both projects to the solution
+dotnet sln add StringManipulation/StringManipulation.csproj
+dotnet sln add StringManipulationTest/StringManipulationTest.csproj
+
+# 4. Reference the library project from the test project
+dotnet add StringManipulationTest/StringManipulationTest.csproj reference StringManipulation/StringManipulation.csproj
+```
+
+`dotnet new xunit` is the CLI equivalent of picking the **xUnit Test Project** template in Visual Studio — it scaffolds the project with the xUnit and `Microsoft.NET.Test.Sdk` packages already wired up. The `dotnet add ... reference` command is what makes `StringOperations` visible to the test project, the same project reference you'd add by hand through Visual Studio's Solution Explorer.
+
+> 📌 This run named the test project `StringManipulationTest` (singular, no dot). The naming convention covered next recommends the plural `StringManipulation.Tests` — both work functionally; the convention is a team preference, not a compiler requirement.
+
+Once the reference is in place, `dotnet test` from the solution folder runs the whole suite — the CLI's equivalent of Test Explorer's "Run All".
+
 ### How do you name testing projects and classes?
 
 .NET has a clear community standard for naming test projects and classes. Following it means any developer can understand your structure at a glance.
@@ -282,10 +308,10 @@ public class StringOperationsTest
         var strOperations = new StringOperations();
 
         // Act
-        var result = strOperations.ConcatenateStrings("Hello", "Platzi");
+        var result = strOperations.ConcatenateStrings("Hello", "World");
 
         // Assert
-        Assert.Equal("Hello Platzi", result);
+        Assert.Equal("Hello World", result);
     }
 }
 ```
@@ -293,7 +319,7 @@ public class StringOperationsTest
 Breaking down what happens there:
 
 1. An instance of `StringOperations` is created with `new`.
-2. `ConcatenateStrings` is called with two strings: `"Hello"` and `"Platzi"`.
+2. `ConcatenateStrings` is called with two strings: `"Hello"` and `"World"`.
 3. The result is compared against the expected value with `Assert.Equal`.
 
 `Assert` is the xUnit class that performs the actual check. `Assert.Equal` takes the **expected** value first and the **actual** value second — if they match, the test passes.
@@ -316,7 +342,7 @@ A green result means the method's behavior matches what you expected. Changing t
 
 Once this structure is in place, adding tests for the rest of `StringOperations`'s methods (see [Features](#features)) is just a matter of repeating Arrange-Act-Assert and letting Test Explorer do the rest.
 
-> 🔗 **Resource from this lesson:** [platzi/curso-unit-testing-csharp](https://github.com/platzi/curso-unit-testing-csharp) at branch `1-primeraprueba`.
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `1-primeraprueba`.
 
 ## Module Roadmap
 
