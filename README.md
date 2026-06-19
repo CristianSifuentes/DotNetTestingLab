@@ -282,10 +282,10 @@ public class StringOperationsTest
         var strOperations = new StringOperations();
 
         // Act
-        var result = strOperations.ConcatenateStrings("Hello", "Platzi");
+        var result = strOperations.ConcatenateStrings("Hello", "World");
 
         // Assert
-        Assert.Equal("Hello Platzi", result);
+        Assert.Equal("Hello World", result);
     }
 }
 ```
@@ -293,7 +293,7 @@ public class StringOperationsTest
 Breaking down what happens there:
 
 1. An instance of `StringOperations` is created with `new`.
-2. `ConcatenateStrings` is called with two strings: `"Hello"` and `"Platzi"`.
+2. `ConcatenateStrings` is called with two strings: `"Hello"` and `"World"`.
 3. The result is compared against the expected value with `Assert.Equal`.
 
 `Assert` is the xUnit class that performs the actual check. `Assert.Equal` takes the **expected** value first and the **actual** value second — if they match, the test passes.
@@ -316,7 +316,7 @@ A green result means the method's behavior matches what you expected. Changing t
 
 Once this structure is in place, adding tests for the rest of `StringOperations`'s methods (see [Features](#features)) is just a matter of repeating Arrange-Act-Assert and letting Test Explorer do the rest.
 
-> 🔗 **Resource from this lesson:** [platzi/curso-unit-testing-csharp](https://github.com/platzi/curso-unit-testing-csharp) at branch `1-primeraprueba`.
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `1-primeraprueba`.
 
 ## Module Roadmap
 
