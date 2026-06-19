@@ -52,6 +52,14 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What happens if you force a test to fail?](#what-happens-if-you-force-a-test-to-fail)
   - [How do you run xUnit tests from the terminal?](#how-do-you-run-xunit-tests-from-the-terminal)
   - [Practice challenge: testing RemoveWhitespace](#practice-challenge-testing-removewhitespace)
+- [Testing with StartsWith, Contains, and Throws](#testing-with-startswith-contains-and-throws)
+  - [How do you test that a string starts with a given word?](#how-do-you-test-that-a-string-starts-with-a-given-word)
+  - [When should you use Contains instead of Equal?](#when-should-you-use-contains-instead-of-equal)
+  - [How do you test that a function throws an exception?](#how-do-you-test-that-a-function-throws-an-exception)
+  - [What happens if the function doesn't throw the expected exception?](#what-happens-if-the-function-doesnt-throw-the-expected-exception)
+  - [Can you still apply AAA in exception tests?](#can-you-still-apply-aaa-in-exception-tests)
+  - [Which exceptions are worth covering with tests?](#which-exceptions-are-worth-covering-with-tests)
+  - [Practice challenge: testing TruncateString](#practice-challenge-testing-truncatestring)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -439,6 +447,78 @@ The challenge is to write tests for `RemoveWhitespace` (see [Features](#features
 - The AAA structure in every test.
 - Combined asserts — `NotNull`, `NotEmpty`, and `Equal`.
 - Descriptive names with scenarios separated by an underscore.
+
+## Testing with StartsWith, Contains, and Throws
+
+Unit tests don't always need to check that a result is exactly equal to some text. Sometimes it's enough to confirm it starts with a given word, contains a fragment, or that a function throws an exception when it receives an invalid parameter. This lesson covers `StartsWith`, `Contains`, and `Throws` to cover those real-world scenarios.
+
+### How do you test that a string starts with a given word?
+
+`Assert.StartsWith` checks that a string begins with a specific substring. It's ideal when the full result can vary but the beginning must stay constant.
+
+Take `QuantintyInWords`, which receives a word and a number and returns something like `"ten cats"` when you pass `"cat"` and `10`. Instead of comparing the whole result, you validate just the start:
+
+```csharp
+[Fact]
+public void QuantintyInWords()
+{
+    var strOperations = new StringOperations();
+    var result = strOperations.QuantintyInWords("cat", 10);
+    Assert.StartsWith("ten", result);
+    Assert.Contains("cat", result);
+}
+```
+
+> 📌 `QuantintyInWords` relies on [Humanizer](https://github.com/Humanizr/Humanizer) (see [Tech Stack](#tech-stack)) to spell out the number, and Humanizer's output is culture-dependent. If your environment's locale isn't English, the result may come back localized (e.g., `"diez"` instead of `"ten"`) — adjust the expected prefix to match your environment without losing the validation logic.
+
+> **What does `StartsWith` do in xUnit?** It checks that a string begins with a specific substring — useful when the rest of the result can vary but the start must stay constant.
+
+### When should you use Contains instead of Equal?
+
+Use `Assert.Contains` when you only need to confirm a word appears in the result, regardless of its position or whether it's pluralized. That gives you flexibility when the exact format can change.
+
+In the example above, the function can return a pluralized `"cats"`. Validating with `Equal` risks failing the test over a minor formatting detail; `Contains` only confirms the word `"cat"` is present.
+
+The practical lesson: be deliberate about what you check. You don't always need exact equality — sometimes verifying that a fragment is present is enough, and it makes your tests more resilient to small changes.
+
+### How do you test that a function throws an exception?
+
+When a function deliberately throws an exception for invalid parameters, that logic also needs test coverage. xUnit provides `Assert.Throws<T>` to validate that code throws the expected exception type.
+
+`GetStringLength` (see [Features](#features)) throws an `ArgumentNullException` when it receives `null`. To test it, wrap the call in a lambda expression so it can be used as a delegate:
+
+```csharp
+[Fact]
+public void GetStringLength_Exception()
+{
+    var strOperations = new StringOperations();
+    Assert.Throws<ArgumentNullException>(() => strOperations.GetStringLength(null));
+}
+```
+
+> **Why do I need a lambda with `Assert.Throws`?** Because `Throws` requires a delegate, not a direct call. The lambda wraps the call so xUnit can execute it and capture the exception inside the assert.
+
+### What happens if the function doesn't throw the expected exception?
+
+If you pass a valid value instead of `null`, the test fails with a clear message: an exception was expected and none was thrown. That confirms the test is doing its job of catching unexpected behavior.
+
+### Can you still apply AAA in exception tests?
+
+These tests skip one of the three A's, since there's no **act** step that stores a result to check afterward — the execution and the verification happen together inside `Throws`. That's expected for this scenario and is perfectly valid (see [What is the AAA (Arrange-Act-Assert) structure?](#what-is-the-aaa-arrange-act-assert-structure)).
+
+### Which exceptions are worth covering with tests?
+
+Not every exception deserves a unit test — only the ones that are part of the code's controlled logic, signals the function throws on purpose to flag misuse. Examples worth covering in this project:
+
+- `GetStringLength` throws `ArgumentNullException` when it receives `null`.
+- `TruncateString` throws `ArgumentOutOfRangeException` when `maxLength` is less than or equal to zero.
+- Any range check or required-parameter validation your own logic defines.
+
+### Practice challenge: testing `TruncateString`
+
+Write two tests for `TruncateString` (see [Features](#features)): one validating the successful case, and another confirming it throws `ArgumentOutOfRangeException` when `maxLength` is invalid. Together they cover both paths through the code.
+
+> 🔗 **Quick recap:** `StartsWith` validates the beginning of a string, `Contains` validates that a fragment is present, and `Throws<T>` validates that a specific exception is thrown — three tools for covering far more realistic scenarios than plain equality.
 
 ## Module Roadmap
 
