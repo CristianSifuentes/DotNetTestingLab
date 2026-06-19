@@ -37,6 +37,11 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What are the characteristics of NUnit?](#what-are-the-characteristics-of-nunit)
   - [What makes xUnit different from the rest?](#what-makes-xunit-different-from-the-rest)
   - [How are tests implemented in xUnit?](#how-are-tests-implemented-in-xunit)
+- [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit)
+  - [Why separate the test project from the main project?](#why-separate-the-test-project-from-the-main-project)
+  - [How do you name testing projects and classes?](#how-do-you-name-testing-projects-and-classes)
+  - [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step)
+  - [How do you run tests from Test Explorer?](#how-do-you-run-tests-from-test-explorer)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -238,6 +243,80 @@ Before diving into unit testing in .NET, it's worth understanding the different 
 Implementing unit tests in xUnit is remarkably intuitive: you use the `[Fact]` attribute to mark a method as a test, and inside it you use assertions to validate the expected behavior of your code. This ease of use is the main reason **xUnit** was chosen as the testing library for this course (see [Tech Stack](#tech-stack) and the example under [Example unit test in C#](#example-unit-test-in-c)).
 
 > 🔗 **Resources from this lesson:** [NUnit.org](https://nunit.org/) · [xUnit.net](https://xunit.net/) · *Unit testing C# with MSTest and .NET* (Microsoft Learn)
+
+## Creating Your First Unit Test with xUnit
+
+Writing your first unit test is simpler than it looks once you understand the project structure, the naming conventions, and how the `[Fact]` attribute works. This is the lesson where the test project for `StringManipulation` gets set up, the first test gets written, and it gets executed from Visual Studio to confirm the code does what it should.
+
+### Why separate the test project from the main project?
+
+A good practice in .NET development is to keep tests in their own project and reference the project under test from there. Mixing business logic with tests creates unnecessary coupling and complicates deployment.
+
+In Visual Studio, within the same solution, you add a new project with **Add > New Project**. Filtering by the word "Test" surfaces the official templates: **MSTest**, **NUnit**, and **xUnit**. These templates ship with all the required libraries preinstalled, which saves you the manual setup.
+
+> **Can I use a regular Class Library instead of the Test template?** Yes. You can create a Class Library and manually add the xUnit NuGet packages — the template only automates that step.
+
+### How do you name testing projects and classes?
+
+.NET has a clear community standard for naming test projects and classes. Following it means any developer can understand your structure at a glance.
+
+- The **test project** takes the name of the project under test plus the plural word **Tests** — e.g., `StringManipulation.Tests` for the `StringManipulation` project in this repo.
+- The **test class** takes the name of the class under test plus the singular word **Test** — e.g., `StringOperationsTest` for the `StringOperations` class (see [Module 0 — Codebase](#module-0--codebase)).
+- The class **must be `public`**. Visual Studio scaffolds it as `internal` by default, which silently keeps the runner from executing the tests.
+
+After creating the project from the **xUnit Test Project** template and picking a target framework (this repo targets **.NET 8**; see [Tech Stack](#tech-stack)), you add a project reference to `StringManipulation`. Without that reference you can't import `StringOperations` or call its methods.
+
+### How do you write a unit test step by step?
+
+Every unit test follows the same three beats: **Arrange** the object, **Act** on it, and **Assert** the result. In xUnit, turning a method into a test is as simple as adding the `[Fact]` attribute above it:
+
+```csharp
+using Xunit;
+
+public class StringOperationsTest
+{
+    [Fact]
+    public void ConcatenateStrings()
+    {
+        // Arrange
+        var strOperations = new StringOperations();
+
+        // Act
+        var result = strOperations.ConcatenateStrings("Hello", "Platzi");
+
+        // Assert
+        Assert.Equal("Hello Platzi", result);
+    }
+}
+```
+
+Breaking down what happens there:
+
+1. An instance of `StringOperations` is created with `new`.
+2. `ConcatenateStrings` is called with two strings: `"Hello"` and `"Platzi"`.
+3. The result is compared against the expected value with `Assert.Equal`.
+
+`Assert` is the xUnit class that performs the actual check. `Assert.Equal` takes the **expected** value first and the **actual** value second — if they match, the test passes.
+
+> **What does the `[Fact]` attribute do?** It turns a regular method into a unit test that the runner can discover and execute. Without it, xUnit ignores the method entirely.
+
+> **Why must the test class be `public`?** Because xUnit's runner can only access public classes. An `internal` class won't run its tests, even if its methods carry `[Fact]`.
+
+### How do you run tests from Test Explorer?
+
+Visual Studio ships with **Test Explorer**, a tool that automatically discovers every test in the solution. If it's not visible, enable it from **View > Test Explorer**.
+
+From there you can:
+
+- Run every test in the project with a single click.
+- Run an individual test by selecting it and pressing **Run**.
+- See the result in green when it passes, or red when it fails.
+
+A green result means the method's behavior matches what you expected. Changing the expected value — say, adding an extra space — turns the test red. That's the core value of unit testing: it catches the moment a code change breaks previously working logic, without you having to review everything by hand.
+
+Once this structure is in place, adding tests for the rest of `StringOperations`'s methods (see [Features](#features)) is just a matter of repeating Arrange-Act-Assert and letting Test Explorer do the rest.
+
+> 🔗 **Resource from this lesson:** [platzi/curso-unit-testing-csharp](https://github.com/platzi/curso-unit-testing-csharp) at branch `1-primeraprueba`.
 
 ## Module Roadmap
 
