@@ -60,6 +60,16 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Can you still apply AAA in exception tests?](#can-you-still-apply-aaa-in-exception-tests)
   - [Which exceptions are worth covering with tests?](#which-exceptions-are-worth-covering-with-tests)
   - [Practice challenge: testing TruncateString](#practice-challenge-testing-truncatestring)
+- [The Fact Attribute in Depth](#the-fact-attribute-in-depth)
+  - [What does the Fact attribute represent in xUnit?](#what-does-the-fact-attribute-represent-in-xunit)
+  - [What are the core characteristics of Fact?](#what-are-the-core-characteristics-of-fact)
+  - [Fact vs. Theory: which one should you use?](#fact-vs-theory-which-one-should-you-use)
+- [Parameterized Tests with Theory and InlineData](#parameterized-tests-with-theory-and-inlinedata)
+  - [Why parameterize unit tests in xUnit?](#why-parameterize-unit-tests-in-xunit)
+  - [How do you write a Theory and InlineData test step by step?](#how-do-you-write-a-theory-and-inlinedata-test-step-by-step)
+  - [What happens if one scenario fails?](#what-happens-if-one-scenario-fails)
+  - [When should you use Theory in your tests?](#when-should-you-use-theory-in-your-tests)
+  - [Practice challenge: parameterizing IsPalindrome](#practice-challenge-parameterizing-ispalindrome)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -519,6 +529,131 @@ Not every exception deserves a unit test — only the ones that are part of the 
 Write two tests for `TruncateString` (see [Features](#features)): one validating the successful case, and another confirming it throws `ArgumentOutOfRangeException` when `maxLength` is invalid. Together they cover both paths through the code.
 
 > 🔗 **Quick recap:** `StartsWith` validates the beginning of a string, `Contains` validates that a fragment is present, and `Throws<T>` validates that a specific exception is thrown — three tools for covering far more realistic scenarios than plain equality.
+
+## The Fact Attribute in Depth
+
+Every test written so far in this README — `ConcatenateStringsTest`, `IsPalindrome_True`, `GetStringLength_Exception`, and the rest — shares the same building block: the `[Fact]` attribute. This section pulls together everything that attribute is responsible for, so it's documented in one place instead of scattered across each lesson.
+
+### What does the Fact attribute represent in xUnit?
+
+In xUnit, the `[Fact]` attribute declares a **parameterless** unit test that checks an invariant — a scenario that should always be true, regardless of context. It represents one fixed, concrete case: no input parameters, no external data configuration, just a single hardcoded expectation.
+
+```csharp
+using Xunit;
+
+public class CalculatorTests
+{
+    [Fact]
+    public void Add_TwoPlusTwo_ReturnsFour()
+    {
+        // Arrange
+        var calculator = new Calculator();
+
+        // Act
+        var result = calculator.Add(2, 2);
+
+        // Assert
+        Assert.Equal(4, result);
+    }
+}
+```
+
+> 📌 This generic `CalculatorTests` example follows the exact same AAA shape already used by this repo's own tests — compare it with `ConcatenateStringsTest` in [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step).
+
+### What are the core characteristics of Fact?
+
+- **No parameters** — the test method must contain zero arguments.
+- **Single test case** — it produces exactly one test outcome in the test runner, no matter how many assertions live inside it.
+- **Isolated lifecycles** — xUnit instantiates a brand-new instance of the test class for every individual `[Fact]` it executes, so one test can never leak mutable state into the next.
+- **Optional named parameters** — you can pass arguments directly to the attribute itself, such as `[Fact(Skip = "Reason")]` to bypass a test without deleting it, or `[Fact(DisplayName = "Custom Name")]` to change how it's labeled in the test runner's output.
+
+```csharp
+[Fact(Skip = "Pending fix for negative operands")]
+public void Add_NegativeNumbers_ReturnsSum()
+{
+    // ...
+}
+
+[Fact(DisplayName = "Adding 2 + 2 should return 4")]
+public void Add_TwoPlusTwo_ReturnsFour()
+{
+    // ...
+}
+```
+
+> **Why does xUnit create a new test class instance per Fact?** To guarantee isolation — each test starts from a clean, predictable state instead of inheriting whatever a previous test left behind. When you genuinely need to share expensive setup across tests, xUnit offers class fixtures (`IClassFixture<T>`) rather than relying on shared instance state.
+
+### Fact vs. Theory: which one should you use?
+
+| | `[Fact]` | `[Theory]` |
+|---|---|---|
+| Use case | Standalone, concrete scenario with hardcoded values | Parameterized testing — the same logic exercised with different inputs |
+| Parameters | None | Accepts arguments, fed by attributes like `[InlineData]` |
+| Test outcomes | Exactly one | One per data row supplied |
+
+Every `[Fact]` test in this repo so far fits the same mold: a single hardcoded scenario per test, as in `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test functions that return true or false?](#how-do-you-test-functions-that-return-true-or-false)). `[Theory]` and `[InlineData]` become useful once you want to collapse near-duplicate `[Fact]` tests like those two into a single parameterized test — a pattern planned for a future module (see [Module Roadmap](#module-roadmap)).
+
+> 🔗 **Further reading:** [xUnit.net documentation](https://xunit.net/) · *Difference between Fact and Theory?* (Stack Overflow) · *Xunit test context to run only once per class* (Stack Overflow) · *Skipping a whole test class in xUnit.net* (Stack Overflow)
+
+## Parameterized Tests with Theory and InlineData
+
+Reusing unit tests in xUnit lets you validate multiple scenarios with a single structure, using the `[Theory]` and `[InlineData]` attributes. This lesson builds directly on [The Fact Attribute in Depth](#the-fact-attribute-in-depth): it's what to reach for once writing one `[Fact]` per scenario starts feeling repetitive.
+
+### Why parameterize unit tests in xUnit?
+
+When you write a test with `[Fact]`, you're validating a single, fixed scenario (see [What are the core characteristics of Fact?](#what-are-the-core-characteristics-of-fact)). If you want to cover several cases, you end up copying the same structure over and over — and that's where the real problem shows up: duplicated code, costly maintenance, and tests that get harder to read.
+
+`[Theory]` solves this by turning a test method into a parameterizable template. Each data set you supply runs as an independent execution, so the test runner reports exactly which scenario passed and which one didn't.
+
+> **What does the Theory attribute do in xUnit?** It turns a test method into a parameterizable template. Unlike `[Fact]`, it lets you run the same test with different input values and expected results.
+
+### How do you write a Theory and InlineData test step by step?
+
+This example uses `FromRomanToNumber` (see [Features](#features)), which takes a Roman numeral string and returns its `int` equivalent. A parameterized test has three parts:
+
+1. The `[Theory]` attribute, replacing `[Fact]`.
+2. One or more `[InlineData]` attributes, each carrying the input value(s) and the expected result.
+3. Parameters on the test method that match the `InlineData` values in order and type.
+
+```csharp
+[Theory]
+[InlineData("V", 5)]
+[InlineData("III", 3)]
+[InlineData("X", 10)]
+public void FromRomanToNumber(string romanNumber, int expected)
+{
+    var result = strOperations.FromRomanToNumber(romanNumber);
+    Assert.Equal(expected, result);
+}
+```
+
+Each `[InlineData]` line represents a different scenario: the first value fills `romanNumber`, the second fills `expected`. The runner executes this test three times, once per combination.
+
+### What happens if one scenario fails?
+
+xUnit visually separates each case in Test Explorer. If you add an incorrect data row on purpose — say, `[InlineData("P", -1)]` — that single scenario shows up as failed while the others keep passing. That granularity is one of the biggest advantages over a plain `[Fact]`, where a single bad assertion fails the whole test without telling you which input caused it.
+
+> **What's the difference between Fact and Theory?** `[Fact]` defines a parameterless test that validates a single case. `[Theory]` defines a parameterized test that runs multiple times, once for each data set supplied via `[InlineData]` (see [Fact vs. Theory: which one should you use?](#fact-vs-theory-which-one-should-you-use)).
+
+### When should you use Theory in your tests?
+
+Reach for `[Theory]` whenever a function has uniform behavior but multiple valid inputs. A few practical cases from this project:
+
+- Validating conversions, like Roman numerals to integers (`FromRomanToNumber`).
+- Testing text-transformation functions, like `QuantintyInWords`.
+- Unifying boolean tests — for example, checking whether a word is a palindrome with both `true` and `false` cases in a single method, instead of keeping `IsPalindrome_True` and `IsPalindrome_False` as two separate `[Fact]` tests (see [How do you test functions that return true or false?](#how-do-you-test-functions-that-return-true-or-false)).
+
+That last example is especially useful: instead of maintaining two separate methods — one for valid palindromes and one for invalid ones — you combine them into a single parameterized test and cut the testing code in half.
+
+> **What is InlineData in xUnit?** An attribute that supplies data directly in the source code for a `[Theory]` test. Each `InlineData` represents an independent execution of the test, with its own input values and expected output.
+
+Reuse through parameters is part of what makes a unit test well designed. A test that scales to new scenarios without rewriting its logic is a maintainable test.
+
+### Practice challenge: parameterizing IsPalindrome
+
+Rewrite `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test functions that return true or false?](#how-do-you-test-functions-that-return-true-or-false)) as a single `[Theory]` test, using `[InlineData]` rows for both the palindrome and non-palindrome cases — a direct way to confirm how `[Theory]` collapses near-duplicate `[Fact]` tests into one.
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `4-theoryInlineData`.
 
 ## Module Roadmap
 
