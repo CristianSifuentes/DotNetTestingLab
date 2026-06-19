@@ -43,6 +43,15 @@ Each course module lives on its own branch and builds on top of the previous one
   - [How do you name testing projects and classes?](#how-do-you-name-testing-projects-and-classes)
   - [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step)
   - [How do you run tests from Test Explorer?](#how-do-you-run-tests-from-test-explorer)
+- [Best Practices and Assert Types in xUnit](#best-practices-and-assert-types-in-xunit)
+  - [What is the AAA (Arrange-Act-Assert) structure?](#what-is-the-aaa-arrange-act-assert-structure)
+  - [What are the FIRST principles of testing?](#what-are-the-first-principles-of-testing)
+  - [How do you apply AAA to the ConcatenateStrings test?](#how-do-you-apply-aaa-to-the-concatenatestrings-test)
+  - [How do you cover more scenarios with multiple asserts?](#how-do-you-cover-more-scenarios-with-multiple-asserts)
+  - [How do you test functions that return true or false?](#how-do-you-test-functions-that-return-true-or-false)
+  - [What happens if you force a test to fail?](#what-happens-if-you-force-a-test-to-fail)
+  - [How do you run xUnit tests from the terminal?](#how-do-you-run-xunit-tests-from-the-terminal)
+  - [Practice challenge: testing RemoveWhitespace](#practice-challenge-testing-removewhitespace)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -343,6 +352,93 @@ A green result means the method's behavior matches what you expected. Changing t
 Once this structure is in place, adding tests for the rest of `StringOperations`'s methods (see [Features](#features)) is just a matter of repeating Arrange-Act-Assert and letting Test Explorer do the rest.
 
 > 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `1-primeraprueba`.
+
+## Best Practices and Assert Types in xUnit
+
+Writing clear unit tests isn't only about the tool — it's about how you organize the code inside each test. This lesson formalizes the **AAA** structure and introduces several `Assert` methods to cover more scenarios in the `StringManipulation` project.
+
+### What is the AAA (Arrange-Act-Assert) structure?
+
+The AAA structure organizes the code inside each test into three blocks:
+
+- **Arrange** — set up the initial data, variables, and objects the test needs.
+- **Act** — execute the function under test and store the result in a variable.
+- **Assert** — check that the result matches what's expected.
+
+Since each test should exercise a single function, one variable is enough to hold the result before checking it.
+
+> **Why is it called "triple A"?** Because all three phases start with A — arrange, act, and assert — the logical order any well-written test follows.
+
+### What are the FIRST principles of testing?
+
+**FIRST** is a set of rules that matters once a test project grows large enough to need structure, so it doesn't turn into unmaintainable spaghetti code. They aren't covered in depth in this course since they're considered foundational knowledge, but both AAA and FIRST come up often in technical interviews, so they're worth knowing: **F**ast, **I**ndependent, **R**epeatable, **S**elf-validating, **T**horough.
+
+### How do you apply AAA to the `ConcatenateStrings` test?
+
+Mapping the AAA blocks onto the test from [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step):
+
+- **Arrange** — instantiate `StringOperations`, the class that holds the function under test.
+- **Act** — call `ConcatenateStrings` and store the result in a `result` variable.
+- **Assert** — use `Assert.Equal` to compare `result` against the expected value.
+
+### How do you cover more scenarios with multiple asserts?
+
+A good practice is checking several possible outcomes within the same test. If you only validate equality and the test fails, you don't know whether the problem is a `null` value, an empty string, or simply a different string.
+
+xUnit ships with many assertion methods — typing `Assert.` in Visual Studio shows every option through autocomplete. The most useful ones to start with:
+
+- `Assert.NotNull(result)` — checks the value isn't `null`.
+- `Assert.NotEmpty(result)` — checks it isn't an empty string.
+- `Assert.Equal("Hello, World", result)` — checks exact equality.
+
+Combining these three lines covers three different scenarios. If the test fails, you know exactly where the problem is without guessing.
+
+### How do you test functions that return `true` or `false`?
+
+When a function returns a boolean, you need to test both outcomes — when it returns `true` and when it returns `false`. This is one of the most important testing practices.
+
+Take `IsPalindrome` as an example, applying AAA:
+
+```csharp
+[Fact]
+public void IsPalindrome_True()
+{
+    // Arrange
+    StringOperations strOperations = new StringOperations();
+
+    // Act
+    var result = strOperations.IsPalindrome("ama");
+
+    // Assert
+    Assert.True(result);
+}
+```
+
+`"ama"` reads the same forwards and backwards, so the function should return `true`. For the opposite scenario, duplicate the test, pass `"hello"` instead, and assert with `Assert.False(result)`.
+
+> **How do you name tests with multiple scenarios?** Use the function's name, an underscore, and the scenario — `IsPalindrome_True` and `IsPalindrome_False`. That way, anyone reading the test list knows immediately which case each one validates.
+
+### What happens if you force a test to fail?
+
+You can swap `Assert.True` for `Assert.False`, or tweak `IsPalindrome`'s logic, just to confirm your tests actually catch errors. If a test breaks when it's supposed to, it's doing its job.
+
+### How do you run xUnit tests from the terminal?
+
+Besides Visual Studio's Test Explorer, you can run your tests from the terminal with a single command. Open a terminal (**View > Terminal**) and run:
+
+```bash
+dotnet test
+```
+
+This command walks the whole solution, discovers every test project, and runs all of its tests together — useful when you want to wire test execution into CI/CD pipelines or automate validation outside the IDE (see [Run the Console App](#run-the-console-app) for the other `dotnet` CLI commands used in this repo).
+
+### Practice challenge: testing `RemoveWhitespace`
+
+The challenge is to write tests for `RemoveWhitespace` (see [Features](#features)), which strips whitespace from a string. Apply everything covered in this section:
+
+- The AAA structure in every test.
+- Combined asserts — `NotNull`, `NotEmpty`, and `Equal`.
+- Descriptive names with scenarios separated by an underscore.
 
 ## Module Roadmap
 
