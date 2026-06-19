@@ -76,6 +76,7 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Module 1 — First Test](#module-1--first-test)
   - [Module 2 — Types Assert](#module-2--types-assert)
   - [Module 3 — Types Assert 2](#module-3--types-assert-2)
+  - [Module 4 — Theory InlineData](#module-4--theory-inlinedata)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -666,7 +667,7 @@ Rewrite `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test funct
 | 1      | `1-firsttest`  | First xUnit test project — `StringManipulation.Tests` scaffolded and wired via `ProjectReference` | ✅ Done |
 | 2      | `2-types-assert` | AAA convention + multi-assert tests — `Assert.NotNull`/`NotEmpty`/`Equal` and the `IsPalindrome_True`/`_False` boolean pair | ✅ Done |
 | 3      | `3-types-assert2` | `StartsWith`/`Contains`/`Throws` — `QuantintyInWords` and `GetStringLength_Exception` | ✅ Done |
-| 4      | `4-...`        | _To be announced_                        | 📌 Planned     |
+| 4      | `4-theory-inlinedata` | First parameterized test — `Theory`/`InlineData` on `FromRomanToNumber` | ✅ Done |
 | 5      | `5-...`        | _To be announced_                        | 📌 Planned     |
 
 > ✏️ **Maintainer note:** when a new module branch is published, update its row above (branch name, topic, status) and add a dedicated section for it under [Project Structure](#project-structure), following the same format as [Module 0](#module-0--codebase).
@@ -687,7 +688,7 @@ DotNetTestingLab/
 │   └── information.txt                 # Sample data file used by the "read file" option
 └── StringManipulation.Tests/           # Module 1 — first xUnit test project
     ├── StringManipulation.Tests.csproj # net8.0, ProjectReference -> StringManipulation.csproj
-    ├── StringOperationsTest.cs         # +ConcatenateStrings/IsPalindrome (M1-2) +QuantintyInWords/GetStringLength_Exception (M3)
+    ├── StringOperationsTest.cs         # M1-2: Concatenate/IsPalindrome · M3: QuantintyInWords/GetStringLength_Exception · M4: FromRomanToNumber [Theory]
     ├── UnitTest1.cs                    # Default xUnit template scaffold (unused, left as-is)
     └── Usings.cs                       # global using Xunit;
 ```
@@ -764,6 +765,22 @@ Branch [`3-types-assert2`](https://github.com/CristianSifuentes/DotNetTestingLab
 - **Code vs. README drift on the exception assertion** — the committed test calls `Assert.ThrowsAny<ArgumentNullException>(...)`, but the README's code sample for the same test (in [How do you test that a function throws an exception?](#how-do-you-test-that-a-function-throws-an-exception)) shows `Assert.Throws<ArgumentNullException>(...)`. They behave the same here only because `StringOperations.GetStringLength` throws the exact type `ArgumentNullException` and not a subclass — `Throws<T>` requires an exact type match, while `ThrowsAny<T>` also accepts derived exception types. Worth reconciling so the documented snippet matches the real assertion used.
 - **AAA comments still inconsistent** — `QuantintyInWords` keeps `// Arrange` / `// Act` / `//Assert` (note the missing space before `Assert`, unlike every other test's `// Assert`), while `GetStringLength_Exception` has no AAA comments at all — consistent with the pattern from Module 2 ([Can you still apply AAA in exception tests?](#can-you-still-apply-aaa-in-exception-tests) explains why exception tests skip the **Act** step, but the missing **Arrange** comment here is just an omission).
 - **Practice challenge still open** — [Practice challenge: testing TruncateString](#practice-challenge-testing-truncatestring) is documented but, like Module 2's `RemoveWhitespace` challenge, has no test in `StringOperationsTest.cs` yet.
+
+### Module 4 — Theory InlineData
+
+Branch [`4-theory-inlinedata`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/4-theory-inlinedata) is a single commit, `6241051` — the largest single commit so far (148 lines: 135 in README, 13 in the test file). It introduces the suite's **first parameterized test**, `FromRomanToNumber`, using `[Theory]` + `[InlineData]` instead of `[Fact]`. No package changes are needed: `[Theory]`/`[InlineData]` ship with the `xunit` package already referenced since Module 1.
+
+| File | Change |
+|------|--------|
+| `StringOperationsTest.cs` | One new method, `FromRomanToNumber(string romanNumber, int expected)`, decorated with `[Theory]` and three `[InlineData]` rows — `("V", 5)`, `("III", 3)`, `("X", 10)` — replacing what would otherwise be three near-duplicate `[Fact]` tests with a single parameterized one (see [How do you write a Theory and InlineData test step by step?](#how-do-you-write-a-theory-and-inlinedata-test-step-by-step)). It still follows AAA internally: instantiate `StringOperations`, call `FromRomanToNumber(romanNumber)`, then `Assert.Equal(expected, result)` — `FromRomanToNumber` itself just delegates to Humanizer's `input.FromRoman()` (see [Tech Stack](#tech-stack)). xUnit runs the method three times, once per `InlineData` row, and reports each as an independent pass/fail. |
+
+**Evolutionary changes vs. Module 3:**
+
+- **Changed** — `StringOperationsTest.cs` only (+13 lines). No `.csproj` changes: `xunit 2.4.2` already exposes `[Theory]`/`[InlineData]`, so unlike Module 1's project-creation step, this module needed zero new NuGet packages.
+- **Test count** — the 5 `[Fact]` tests from Module 3 are untouched; `FromRomanToNumber` is the suite's first `[Theory]`, contributing 3 independently-reported outcomes from a single method definition (5 `[Fact]`s + 1 `[Theory]` × 3 rows + the still-unused `UnitTest1.Test1` = 9 discoverable test results from 7 methods).
+- **First parameterized test in the repo** — every prior module added a new `[Fact]` or extended an existing one's assertions; this is the first method whose definition produces multiple independent test results, the core payoff described in [Why parameterize unit tests in xUnit?](#why-parameterize-unit-tests-in-xunit).
+- **README sample drift** — the README's code block for this test (in [How do you write a Theory and InlineData test step by step?](#how-do-you-write-a-theory-and-inlinedata-test-step-by-step)) calls `strOperations.FromRomanToNumber(...)` without the `var strOperations = new StringOperations();` line the real committed test has. Read literally, the snippet wouldn't compile on its own — it was trimmed to keep the lesson focused on `[Theory]`/`[InlineData]`, the same kind of doc/code gap flagged for `Assert.Throws` vs. `Assert.ThrowsAny` in [Module 3](#module-3--types-assert-2).
+- **Practice challenge still unimplemented** — [Practice challenge: parameterizing IsPalindrome](#practice-challenge-parameterizing-ispalindrome) asks for `IsPalindrome_True`/`IsPalindrome_False` to be collapsed into one `[Theory]`, but `StringOperationsTest.cs` still keeps them as two separate `[Fact]` tests — the same "lesson documented, test not committed" pattern seen in Modules 2 and 3 (`RemoveWhitespace`, `TruncateString`).
 
 ## Features
 
