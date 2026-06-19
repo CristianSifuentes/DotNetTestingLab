@@ -73,6 +73,7 @@ Each course module lives on its own branch and builds on top of the previous one
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
+  - [Module 1 — First Test](#module-1--first-test)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -660,7 +661,7 @@ Rewrite `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test funct
 | Module | Branch         | Topic                                   | Status        |
 |:------:|----------------|------------------------------------------|:-------------:|
 | 0      | `0-codebase`   | Base code — string utilities console app, no tests yet | ✅ Done |
-| 1      | `1-...`        | _To be announced_                        | 📌 Planned     |
+| 1      | `1-firsttest`  | First xUnit test project — `StringManipulation.Tests` scaffolded and wired via `ProjectReference` | ✅ Done |
 | 2      | `2-...`        | _To be announced_                        | 📌 Planned     |
 | 3      | `3-...`        | _To be announced_                        | 📌 Planned     |
 | 4      | `4-...`        | _To be announced_                        | 📌 Planned     |
@@ -675,13 +676,18 @@ DotNetTestingLab/
 ├── LICENSE
 ├── README.md
 ├── .gitignore
-└── StringManipulation/                # Module 0 — base console app (no tests yet)
-    ├── StringManipulation.sln
-    ├── StringManipulation.csproj
-    ├── Program.cs                      # Console entry point and menu
-    ├── StringOperations.cs             # Core logic that will be unit tested
-    ├── IFileReaderConnector.cs         # File reader abstraction + implementation
-    └── information.txt                 # Sample data file used by the "read file" option
+├── StringManipulation/                 # Module 0 — base console app (no tests yet)
+│   ├── StringManipulation.sln
+│   ├── StringManipulation.csproj
+│   ├── Program.cs                      # Console entry point and menu
+│   ├── StringOperations.cs             # Core logic that will be unit tested
+│   ├── IFileReaderConnector.cs         # File reader abstraction + implementation
+│   └── information.txt                 # Sample data file used by the "read file" option
+└── StringManipulation.Tests/           # Module 1 — first xUnit test project
+    ├── StringManipulation.Tests.csproj # net8.0, ProjectReference -> StringManipulation.csproj
+    ├── StringOperationsTest.cs         # First real [Fact]: ConcatenateStrings
+    ├── UnitTest1.cs                    # Default xUnit template scaffold (unused, left as-is)
+    └── Usings.cs                       # global using Xunit;
 ```
 
 ### Module 0 — Codebase
@@ -694,6 +700,30 @@ The starting point of the course. A single console project, `StringManipulation`
 | `StringOperations.cs` | Business logic for all string operations — the main subject under test in upcoming modules. |
 | `IFileReaderConnector.cs` | Abstraction (`IFileReaderConnector`) and implementation (`FileReaderConnector`) for reading text files, isolated behind an interface to make it mockable in future tests. |
 | `information.txt` | Sample file consumed by the "read text file" menu option. |
+
+### Module 1 — First Test
+
+Branch [`1-firsttest`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/1-firsttest) introduces the repo's **first xUnit test project**, `StringManipulation.Tests`, and proves out the whole toolchain end to end: scaffold the project, reference the library under test, write one passing `[Fact]`, and document the CLI flow. Three commits carry the entire module:
+
+| Commit | Message | What it actually did |
+|--------|---------|------------------------|
+| `125d095` | Adding StringManipulation.Tests project | Scaffolds the test project (the `dotnet new xunit` template) and writes the **first real test**, `StringOperationsTest.ConcatenateStrings`, against the existing `StringOperations.ConcatenateStrings`. Also swaps the README's sample value from `"Hello, Platzi"` to `"Hello, World"`, and the lesson's resource link from `platzi/curso-unit-testing-csharp` to `World/curso-unit-testing-csharp`, the generic naming used from this point on. |
+| `0af72a3` | Change net8.0 | Fixes `StringManipulation.Tests.csproj`'s `TargetFramework`, which the template had scaffolded as `net7.0`, to `net8.0` — aligning it with the main `StringManipulation` project so both ends of the upcoming `ProjectReference` build against the same framework. |
+| `236a5f3` | Creating new section in README.md | Documents the scaffold-reference-test flow in [How do you set this up from the .NET CLI (Visual Studio Code)?](#how-do-you-set-this-up-from-the-net-cli-visual-studio-code). |
+
+| File | Responsibility |
+|------|-----------------|
+| `StringManipulation.Tests.csproj` | Test project file. Targets `net8.0`, sets `IsTestProject=true`, and pulls in `Microsoft.NET.Test.Sdk 17.3.2`, `xunit 2.4.2`, `xunit.runner.visualstudio 2.4.5`, and `coverlet.collector 3.1.2`. Its `<ProjectReference>` to `../StringManipulation/StringManipulation.csproj` is what makes `StringOperations` visible from test code. |
+| `StringOperationsTest.cs` | The module's real deliverable: a `public class StringOperationsTest` with one `[Fact]`, `ConcatenateStrings`, following Arrange-Act-Assert to confirm `ConcatenateStrings("Hello", "World")` returns `"Hello World"` via `Assert.Equal` (see [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step)). |
+| `UnitTest1.cs` | Leftover scaffold from the `dotnet new xunit` template — an empty `Test1` `[Fact]` inside a `UnitTest1` class. Left untouched in the tree; harmless, but dead weight a later cleanup pass should remove. |
+| `Usings.cs` | `global using Xunit;` — keeps a bare `using Xunit;` out of every test file. |
+
+**Evolutionary changes vs. Module 0:**
+
+- **Added** — the entire `StringManipulation.Tests/` project (4 files). Module 0 shipped with zero test coverage; this is the first test project to exist in the repository.
+- **Changed** — `StringManipulation.Tests.csproj`'s `TargetFramework` moved `net7.0` → `net8.0` within the module itself (`0af72a3`), correcting a template default so the test project's TFM matches `StringManipulation.csproj` (see [What .NET version is used, and does it work with newer versions?](#what-net-version-is-used-and-does-it-work-with-newer-versions)).
+- **Unchanged** — every file under `StringManipulation/` (`Program.cs`, `StringOperations.cs`, `IFileReaderConnector.cs`, `information.txt`) is byte-for-byte identical to Module 0. This module adds test coverage without touching production code, the same separation of concerns described in [Why separate the test project from the main project?](#why-separate-the-test-project-from-the-main-project).
+- **Not wired up** — `StringManipulation/StringManipulation.sln` was **not** updated to include `StringManipulation.Tests`; the `.sln` is byte-for-byte identical to Module 0. In practice, `dotnet test` still works from the `StringManipulation.Tests/` folder (or by pointing at its `.csproj` directly), but opening `StringManipulation.sln` in Visual Studio won't show the test project in Solution Explorer. That's a real discrepancy from the combined-solution walkthrough in [How do you set this up from the .NET CLI (Visual Studio Code)?](#how-do-you-set-this-up-from-the-net-cli-visual-studio-code) — worth closing with a `dotnet sln add` in a later module.
 
 ## Features
 
