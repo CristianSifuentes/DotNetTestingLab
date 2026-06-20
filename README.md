@@ -37,6 +37,9 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What are the characteristics of NUnit?](#what-are-the-characteristics-of-nunit)
   - [What makes xUnit different from the rest?](#what-makes-xunit-different-from-the-rest)
   - [How are tests implemented in xUnit?](#how-are-tests-implemented-in-xunit)
+  - [How do xUnit, NUnit, and MSTest compare architecturally?](#how-do-xunit-nunit-and-mstest-compare-architecturally)
+  - [What are the architectural advantages of xUnit?](#what-are-the-architectural-advantages-of-xunit)
+  - [What are the architectural disadvantages of xUnit?](#what-are-the-architectural-disadvantages-of-xunit)
 - [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit)
   - [Why separate the test project from the main project?](#why-separate-the-test-project-from-the-main-project)
   - [How do you set this up from the .NET CLI (Visual Studio Code)?](#how-do-you-set-this-up-from-the-net-cli-visual-studio-code)
@@ -281,6 +284,40 @@ Before diving into unit testing in .NET, it's worth understanding the different 
 ### How are tests implemented in xUnit?
 
 Implementing unit tests in xUnit is remarkably intuitive: you use the `[Fact]` attribute to mark a method as a test, and inside it you use assertions to validate the expected behavior of your code. This ease of use is the main reason **xUnit** was chosen as the testing library for this course (see [Tech Stack](#tech-stack) and the example under [Example unit test in C#](#example-unit-test-in-c)).
+
+### How do xUnit, NUnit, and MSTest compare architecturally?
+
+Beyond naming, the three libraries differ in default behaviors that shape how you design tests — especially around instance lifecycle and execution order:
+
+| Feature | xUnit.net | NUnit | MSTest |
+|---|---|---|---|
+| Instance lifecycle | New instance per test method | One instance per class (by default) | New instance per test method |
+| Test execution | Parallel by default (at assembly level) | Sequential by default | Sequential by default |
+| Basic test attribute | `[Fact]` | `[Test]` | `[TestMethod]` |
+| Parameterized test | `[Theory]` + `[InlineData]` | `[TestCase]` | `[DataRow]` |
+| Setup mechanism | Class constructor | `[SetUp]` method | `[TestInitialize]` method |
+| Teardown mechanism | `IDisposable` (`Dispose`) | `[TearDown]` method | `[TestCleanup]` method |
+
+> **Why does xUnit use the constructor and `Dispose` instead of `[SetUp]`/`[TearDown]` attributes?** Because xUnit favors native C# idioms over framework-specific lifecycle attributes: code that needs to run before a test belongs in the class constructor, and cleanup code belongs in `Dispose()` — the same pattern you'd use for any disposable resource in plain C#, with no extra attribute vocabulary to learn.
+
+### What are the architectural advantages of xUnit?
+
+xUnit's defaults aren't arbitrary — each one solves a specific problem that surfaces once a test suite grows large:
+
+- **Strict test isolation** — xUnit instantiates a brand-new test class object for every single test case it runs (see [Isolated lifecycles](#what-are-the-core-characteristics-of-fact)). This entirely eliminates state-leakage issues where one test accidentally mutates a shared class-level field and breaks a subsequent one.
+- **Built-in parallelism** — it leverages multi-core processors out of the box by automatically running test collections in parallel, giving excellent execution speed on large test suites without any extra configuration.
+- **Native language idioms** — instead of relying on proprietary framework attributes for lifecycle management, xUnit relies on standard object-oriented C# patterns: setup code goes into the constructor, cleanup code goes into `Dispose()`.
+- **Clean syntax** — it strips away boilerplate attributes like `[TestFixture]` or `[TestClass]`. A class is recognized as a test container simply by containing test methods, as long as it's `public` (see [Why must the test class be public?](#how-do-you-write-a-unit-test-step-by-step)).
+
+### What are the architectural disadvantages of xUnit?
+
+The same defaults that make xUnit powerful also introduce friction in specific scenarios:
+
+- **Steeper learning curve** — developers moving from traditional frameworks like JUnit or NUnit often struggle initially with the absence of explicit setup/teardown attributes and the strict per-test instance lifecycle.
+- **Complex shared context** — if you intentionally want to share expensive state across tests, such as an in-memory database connection or a Docker container, you must implement specialized patterns like `IClassFixture<T>` or `ICollectionFixture<T>` (see [the class fixtures callout](#what-are-the-core-characteristics-of-fact)) rather than relying on a simple shared field.
+- **Integration testing friction** — while outstanding for isolated unit tests, xUnit's default behaviors (new instance per test, parallel execution) can make complex integration or sequential regression workflows harder to orchestrate than with frameworks that default to sequential, class-shared execution.
+
+These trade-offs are exactly why this course reaches for xUnit on unit tests specifically: the isolation and parallelism that make it awkward for some integration scenarios are the same properties that make it reliable for the fast, independent tests the [FIRST principles](#what-are-the-first-principles-of-testing) call for.
 
 > 🔗 **Resources from this lesson:** [NUnit.org](https://nunit.org/) · [xUnit.net](https://xunit.net/) · *Unit testing C# with MSTest and .NET* (Microsoft Learn)
 
