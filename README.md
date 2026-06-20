@@ -70,6 +70,13 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What happens if one scenario fails?](#what-happens-if-one-scenario-fails)
   - [When should you use Theory in your tests?](#when-should-you-use-theory-in-your-tests)
   - [Practice challenge: parameterizing IsPalindrome](#practice-challenge-parameterizing-ispalindrome)
+- [The Skip Attribute in xUnit](#the-skip-attribute-in-xunit)
+  - [What does the Skip attribute do in xUnit, and when should you use it?](#what-does-the-skip-attribute-do-in-xunit-and-when-should-you-use-it)
+  - [How do you apply Skip to a test step by step?](#how-do-you-apply-skip-to-a-test-step-by-step)
+  - [Why should you create a backlog ticket when you skip a test?](#why-should-you-create-a-backlog-ticket-when-you-skip-a-test)
+  - [What happens when you run tests with Skip enabled?](#what-happens-when-you-run-tests-with-skip-enabled)
+  - [How do xUnit attributes translate to NUnit and MSTest?](#how-do-xunit-attributes-translate-to-nunit-and-mstest)
+  - [What do you do when an assertion you need doesn't exist in xUnit?](#what-do-you-do-when-an-assertion-you-need-doesnt-exist-in-xunit)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -77,6 +84,7 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Module 2 — Types Assert](#module-2--types-assert)
   - [Module 3 — Types Assert 2](#module-3--types-assert-2)
   - [Module 4 — Theory InlineData](#module-4--theory-inlinedata)
+  - [Module 5 — Skip](#module-5--skip)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -659,6 +667,76 @@ Rewrite `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test funct
 
 > 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `4-theoryInlineData`.
 
+## The Skip Attribute in xUnit
+
+When a unit test fails for reasons that have nothing to do with your code's logic — a library upgrade, an architecture change, a flaky external dependency — you need a graceful way out. xUnit's `Skip` named parameter lets you pause that test without breaking your continuous integration pipeline, buying you time to resolve the real problem calmly instead of reacting to a wall of red.
+
+### What does the Skip attribute do in xUnit, and when should you use it?
+
+`Skip` works like a temporary pause button for a test you can't run right now but don't want to delete either.
+
+Picture this scenario: your unit tests are automated and, suddenly, one of them starts failing because you upgraded a dependency. If you do nothing, every single run reports an error — and fixing the root cause might take days, since it depends on something external rather than your own logic.
+
+That's where `Skip` comes in. You add it as a named parameter inside `[Fact]`, and it takes a text value that must justify *why* you're skipping the test.
+
+> **What is the Skip attribute in xUnit?** A named parameter you add inside `[Fact]` so a specific test doesn't run. It takes a text message explaining the reason for the skip.
+
+### How do you apply Skip to a test step by step?
+
+Inside your test file — `StringOperationsTest`, in this repo's case — you locate the test you want to pause and modify its attribute:
+
+```csharp
+[Fact(Skip = "This test is not valid at this time. Ticket 001")]
+public void ConcatenateStrings_ShouldReturnConcatenatedString()
+{
+    // test logic
+}
+```
+
+A generic message like "this test isn't valid right now" doesn't help much. The strong recommendation is to give it real context and link it to a ticket in your backlog, so anyone reading the code knows there's a formal follow-up in place.
+
+This repo's own `ConcatenateStrings` test (see [How do you write a unit test step by step?](#how-do-you-write-a-unit-test-step-by-step)) follows exactly that pattern: `[Fact(Skip = "This test is not valid at this time, TICKET-001")]`.
+
+### Why should you create a backlog ticket when you skip a test?
+
+Because without a ticket, `Skip` tends to become permanent — and a test that's skipped forever is noise in your suite, not coverage.
+
+By referencing something like `TICKET-001` in the message, you connect the technical decision to your tracking system, whether that's Jira, Azure DevOps, or whatever your team uses. That guarantees someone will pick the problem back up, fix it, and remove the attribute so the test runs again like all the others.
+
+### What happens when you run tests with Skip enabled?
+
+It doesn't matter whether you run your tests from Visual Studio or from the CLI with `dotnet test` — the behavior is the same: the marked test is omitted, and the report tells you so.
+
+- In **Visual Studio**, you'll see a warning indicating the test was skipped during the run.
+- In the **terminal**, the CLI's report shows something like eight tests passed and one skipped, along with the message you wrote as justification.
+
+That visibility matters: a failing test and an intentionally skipped one are not the same thing, and xUnit makes that distinction clear in both environments.
+
+### How do xUnit attributes translate to NUnit and MSTest?
+
+xUnit's own documentation publishes a comparison table against the other two popular .NET frameworks. The good news: everything you learn in xUnit carries over to the other two — only the naming changes.
+
+A few key equivalences:
+
+| Concept | xUnit | NUnit | MSTest |
+|---|---|---|---|
+| Test attribute | `[Fact]` | `[Test]` | `[TestMethod]` |
+| Equality assertion | `Assert.Equal` | `Is.EqualTo` (via `Assert.That`) | `Assert.AreEqual` |
+
+> **What's the difference between xUnit, NUnit, and MSTest?** All three are .NET testing frameworks with the same underlying functionality. Attribute and assertion names change, but the unit testing concepts behind them are identical (see [Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit](#unit-testing-libraries-in-net-mstest-nunit-and-xunit) for a deeper comparison).
+
+### What do you do when an assertion you need doesn't exist in xUnit?
+
+Sometimes you run into cases where there's no assertion method built for exactly what you want to check. For example, xUnit has no dedicated assertion for verifying that a `double` is `NaN`. Instead, you combine existing methods:
+
+```csharp
+Assert.True(double.IsNaN(result));
+```
+
+The same idea applies to checking assignable types — if there's no direct method for it, you combine `Assert.False`/`Assert.True` with a type check instead. The underlying philosophy holds across the board: whatever you can do in other testing libraries, you can do in xUnit too — only the syntax changes.
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `5-skip`.
+
 ## Module Roadmap
 
 | Module | Branch         | Topic                                   | Status        |
@@ -668,7 +746,7 @@ Rewrite `IsPalindrome_True` and `IsPalindrome_False` (see [How do you test funct
 | 2      | `2-types-assert` | AAA convention + multi-assert tests — `Assert.NotNull`/`NotEmpty`/`Equal` and the `IsPalindrome_True`/`_False` boolean pair | ✅ Done |
 | 3      | `3-types-assert2` | `StartsWith`/`Contains`/`Throws` — `QuantintyInWords` and `GetStringLength_Exception` | ✅ Done |
 | 4      | `4-theory-inlinedata` | First parameterized test — `Theory`/`InlineData` on `FromRomanToNumber` | ✅ Done |
-| 5      | `5-...`        | _To be announced_                        | 📌 Planned     |
+| 5      | `5-skip`       | `[Fact(Skip = "...")]` to pause a test without deleting it — `ConcatenateStrings` paused pending `TICKET-001` | ✅ Done |
 
 > ✏️ **Maintainer note:** when a new module branch is published, update its row above (branch name, topic, status) and add a dedicated section for it under [Project Structure](#project-structure), following the same format as [Module 0](#module-0--codebase).
 
@@ -688,7 +766,7 @@ DotNetTestingLab/
 │   └── information.txt                 # Sample data file used by the "read file" option
 └── StringManipulation.Tests/           # Module 1 — first xUnit test project
     ├── StringManipulation.Tests.csproj # net8.0, ProjectReference -> StringManipulation.csproj
-    ├── StringOperationsTest.cs         # M1-2: Concatenate/IsPalindrome · M3: QuantintyInWords/GetStringLength_Exception · M4: FromRomanToNumber [Theory]
+    ├── StringOperationsTest.cs         # M1-2: Concatenate/IsPalindrome · M3: QuantintyInWords/GetStringLength_Exception · M4: FromRomanToNumber [Theory] · M5: ConcatenateStrings [Skip]
     ├── UnitTest1.cs                    # Default xUnit template scaffold (unused, left as-is)
     └── Usings.cs                       # global using Xunit;
 ```
@@ -781,6 +859,22 @@ Branch [`4-theory-inlinedata`](https://github.com/CristianSifuentes/DotNetTestin
 - **First parameterized test in the repo** — every prior module added a new `[Fact]` or extended an existing one's assertions; this is the first method whose definition produces multiple independent test results, the core payoff described in [Why parameterize unit tests in xUnit?](#why-parameterize-unit-tests-in-xunit).
 - **README sample drift** — the README's code block for this test (in [How do you write a Theory and InlineData test step by step?](#how-do-you-write-a-theory-and-inlinedata-test-step-by-step)) calls `strOperations.FromRomanToNumber(...)` without the `var strOperations = new StringOperations();` line the real committed test has. Read literally, the snippet wouldn't compile on its own — it was trimmed to keep the lesson focused on `[Theory]`/`[InlineData]`, the same kind of doc/code gap flagged for `Assert.Throws` vs. `Assert.ThrowsAny` in [Module 3](#module-3--types-assert-2).
 - **Practice challenge still unimplemented** — [Practice challenge: parameterizing IsPalindrome](#practice-challenge-parameterizing-ispalindrome) asks for `IsPalindrome_True`/`IsPalindrome_False` to be collapsed into one `[Theory]`, but `StringOperationsTest.cs` still keeps them as two separate `[Fact]` tests — the same "lesson documented, test not committed" pattern seen in Modules 2 and 3 (`RemoveWhitespace`, `TruncateString`).
+
+### Module 5 — Skip
+
+Branch [`5-skip`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/5-skip) makes the suite's smallest code change so far — a single attribute parameter — paired with the [The Skip Attribute in xUnit](#the-skip-attribute-in-xunit) lesson in the README. Rather than adding a new test, it pauses an existing one: `ConcatenateStrings` (see [Module 1 — First Test](#module-1--first-test)) now carries a documented `Skip` reason instead of running on every `dotnet test`.
+
+| File | Change |
+|------|--------|
+| `StringOperationsTest.cs` | `ConcatenateStrings`'s `[Fact]` becomes `[Fact(Skip = "This test is not valid at this time, TICKET-001")]` — the method body is untouched, so the test still compiles and is still discoverable, it simply doesn't execute (see [How do you apply Skip to a test step by step?](#how-do-you-apply-skip-to-a-test-step-by-step)). |
+
+**Evolutionary changes vs. Module 4:**
+
+- **Changed** — `StringOperationsTest.cs` only, and only on one line: the `[Fact]` attribute above `ConcatenateStrings`. No assertions, method bodies, `.csproj` files, or files under `StringManipulation/` were touched.
+- **Test count unchanged, runnable count down by one** — the suite still discovers the same 7 methods (5 `[Fact]`s + 1 `[Theory]` with 3 rows, plus the unused `UnitTest1.Test1`) from Module 4, but `dotnet test` now reports `ConcatenateStrings` as **skipped** rather than **passed** — the first test in the repo to carry that status.
+- **First use of a named Fact parameter** — every prior `[Fact]` in the suite used the bare attribute; this is the first to pass a named argument (`Skip`), the same mechanism documented for `DisplayName` in [What are the core characteristics of Fact?](#what-are-the-core-characteristics-of-fact).
+- **Ticket reference is a placeholder** — the message points at `TICKET-001`, a stand-in rather than an entry in a real Jira/Azure DevOps project, since this repo doesn't run one. The convention is what the lesson cares about — see [Why should you create a backlog ticket when you skip a test?](#why-should-you-create-a-backlog-ticket-when-you-skip-a-test) — the specific tracker is an implementation detail for a real project.
+- **Open item carried forward** — `ConcatenateStrings` was already flagged for its missing `// Arrange` comment back in [Module 2](#module-2--types-assert); that inconsistency is still present and now sits alongside the new `Skip` reason, untouched by this module.
 
 ## Features
 
