@@ -106,6 +106,12 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Why is Coverlet the best option for modern .NET?](#why-is-coverlet-the-best-option-for-modern-net)
   - [What technical advantages does Coverlet offer?](#what-technical-advantages-does-coverlet-offer)
   - [How do you install and use Coverlet in your project?](#how-do-you-install-and-use-coverlet-in-your-project)
+- [Running Coverlet and Reading Its Coverage Report](#running-coverlet-and-reading-its-coverage-report)
+  - [Which Coverlet packages do you actually need to install?](#which-coverlet-packages-do-you-actually-need-to-install)
+  - [How do you install Coverlet.Console as a global tool?](#how-do-you-install-coverletconsole-as-a-global-tool)
+  - [How do you run the coverage command with dotnet test?](#how-do-you-run-the-coverage-command-with-dotnet-test)
+  - [How do you interpret line, branch, and method percentages?](#how-do-you-interpret-line-branch-and-method-percentages)
+  - [Why is the branches metric the most important one?](#why-is-the-branches-metric-the-most-important-one)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -1078,6 +1084,87 @@ dotnet test /p:CollectCoverage=true
 > **How do you get test coverage with `dotnet test`?** Install the `coverlet.msbuild` and `coverlet.collector` packages, then run `dotnet test` with the `CollectCoverage=true` MSBuild property. The terminal prints the coverage percentage directly in the test run summary.
 
 Two packages and one command — that's enough to get a real measurement of how thoroughly your code is tested, ready to be pointed at this repo's own `StringManipulation` project in a future module.
+
+## Running Coverlet and Reading Its Coverage Report
+
+Coverlet isn't a single package — it's a small family of tools, each covering a different stage of the workflow: collecting coverage during a test run, wiring that collection into MSBuild, and running it as a standalone CLI. This lesson walks through all three, and through reading the percentages they report, continuing directly from [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net).
+
+### Which Coverlet packages do you actually need to install?
+
+Three pieces make up the toolchain, and each does something different:
+
+- **`coverlet.collector`** — ships by default with the xUnit project template (`dotnet new xunit`) and collects coverage data while the test run executes. This repo's `StringManipulation.Tests.csproj` has had it since [Module 1 — First Test](#module-1--first-test).
+- **`coverlet.msbuild`** — installed from the NuGet package manager (or `dotnet add package coverlet.msbuild`), and is what lets `dotnet test` report coverage directly through an MSBuild property, from Visual Studio or the terminal.
+- **`coverlet.console`** — a **global .NET tool**, not a project package. It's installed once per machine with `dotnet tool install`, not added to any `.csproj`.
+
+> **Why does installing `coverlet.console` as a project NuGet package fail?** Because it isn't a project library — it's a global CLI tool. Installing it through the project's package manager throws an error; the correct path is `dotnet tool install --global coverlet.console`.
+
+### How do you install Coverlet.Console as a global tool?
+
+Coverlet.Console is installed once per machine, not per project:
+
+```bash
+dotnet tool install --global coverlet.console
+```
+
+Run that from a terminal (**View > Terminal** in Visual Studio, or any shell). If it's already installed, the CLI reports that. Otherwise it walks through the install and ends with a success message — after that, `coverlet` is available as a top-level command from any directory, not just from inside `StringManipulation.Tests`.
+
+### How do you run the coverage command with dotnet test?
+
+With the packages in place, running coverage from `StringManipulation.Tests` is the same `dotnet test` from [How do you run xUnit tests from the terminal?](#how-do-you-run-xunit-tests-from-the-terminal), with one extra MSBuild property:
+
+```bash
+dotnet test /p:CollectCoverage=true
+```
+
+`CollectCoverage=true` tells Coverlet to calculate coverage percentages on top of the regular test run and print them once the tests finish. In the lesson's own run, the result was **10 tests passed, 1 skipped**, followed by a table of percentages for the `StringManipulation` class.
+
+> 📌 **Tried against this repo as it stands today:** running the exact command above from `StringManipulation.Tests` executes all 10 discoverable tests (`ConcatenateStrings` skipped, the rest passing or failing depending on locale — see [the `QuantintyInWords` culture callout](#how-do-you-test-that-a-string-starts-with-a-given-word)), but prints **no coverage table**. That confirms the gap flagged in the previous section: `coverlet.collector` alone doesn't hook into the `/p:CollectCoverage=true` MSBuild property — `coverlet.msbuild` does. Adding that package is what turns the command above from "just run the tests" into "run the tests and report coverage."
+
+> **What does the `CollectCoverage` parameter do in `dotnet test`?** It turns on Coverlet's metrics collection during the test run and returns a table of line, branch, and method percentages once the run finishes — provided `coverlet.msbuild` is referenced in the test project.
+
+### How do you interpret line, branch, and method percentages?
+
+Coverlet's report breaks coverage into three distinct numbers, and each one tells you something different. In the lesson's example run against the course's `StringManipulation` class, the numbers were **23.95% lines**, **20% branches**, and **60% methods** — three metrics that look similar but measure very different things:
+
+- **Line coverage** — the percentage of code lines that were actually executed while running the tests.
+- **Method coverage** — how many of the class's functions were invoked at least once by some test.
+- **Branch coverage** — how many logical paths — `if`s, conditions, alternate flows — were actually exercised.
+
+Method coverage tends to look generous, since a single basic test is enough to mark an entire method as "covered." Branch coverage is the stricter, more meaningful number.
+
+### Why is the branches metric the most important one?
+
+A method can hide more than one path through it. Take this repo's own `TruncateString` (see [Features](#features)):
+
+```csharp
+public string TruncateString(string input, int maxLength)
+{
+    if (maxLength <= 0)
+    {
+        throw new ArgumentOutOfRangeException();
+    }
+
+    if (string.IsNullOrEmpty(input) || maxLength >= input.Length)
+    {
+        return input;
+    }
+
+    return input.Substring(0, maxLength);
+}
+```
+
+That's three possible flows in a single method: the `ArgumentOutOfRangeException` guard, the early `return input`, and the final `Substring` truncation. Calling `TruncateString` with just one of those three inputs is already enough for **method coverage** to mark it "covered" — but branch coverage stays low, because the other two paths never ran.
+
+The only way to raise that number is to read the code, identify every condition, and write a dedicated test for each path — exactly the gap the still-open [Practice challenge: testing `TruncateString`](#practice-challenge-testing-truncatestring) exists to close in this repo.
+
+That's why, when coverage is part of your quality bar — with or without TDD — branches are the number that best reflects how robust your tests really are. A method count of 60% can comfortably coexist with a branch count of 20%, and that gap is exactly where your code's untested logic hides.
+
+Key points to remember:
+
+- `coverlet.collector` collects coverage during the test run and ships with the xUnit template; `coverlet.msbuild` is what surfaces that data through `dotnet test /p:CollectCoverage=true`; `coverlet.console` is a separate global CLI tool installed with `dotnet tool install`.
+- Line, method, and branch coverage measure three different things — method coverage is the most forgiving, branch coverage the strictest.
+- A high method-coverage percentage can mask a low branch-coverage percentage; branches are what actually tell you whether every `if` in your code has been exercised by a test.
 
 ## Module Roadmap
 
