@@ -100,6 +100,12 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What happens if the parameter doesn't match the setup?](#what-happens-if-the-parameter-doesnt-match-the-setup)
   - [How do you accept any parameter with It.IsAny?](#how-do-you-accept-any-parameter-with-itisany)
   - [When does it make sense to simulate complex logic in a dependency?](#when-does-it-make-sense-to-simulate-complex-logic-in-a-dependency)
+- [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net)
+  - [What is unit test coverage, and what is it for?](#what-is-unit-test-coverage-and-what-is-it-for)
+  - [What tools exist to measure coverage in .NET?](#what-tools-exist-to-measure-coverage-in-net)
+  - [Why is Coverlet the best option for modern .NET?](#why-is-coverlet-the-best-option-for-modern-net)
+  - [What technical advantages does Coverlet offer?](#what-technical-advantages-does-coverlet-offer)
+  - [How do you install and use Coverlet in your project?](#how-do-you-install-and-use-coverlet-in-your-project)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -937,6 +943,142 @@ The core idea: a unit test should validate a single unit of logic without draggi
 
 > 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `6-libreriamoq`.
 
+## Simulating Dependencies and Behavior with Mock in Unit Tests
+
+Simulating a dependency that does nothing is straightforward — that's exactly what the `ILogger<StringOperations>` mock in [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c) does. But what happens when the dependency returns a value the method under test actually depends on to keep running? This lesson covers `Setup`, `Returns`, and `It.IsAny<T>()` — the tools Moq gives you to configure exactly what a mock does when it's called — using `StringOperations.ReadFile` and its `IFileReaderConnector` dependency as the example.
+
+### Why isn't it enough to create a mock with no configuration?
+
+In [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c), creating `new Mock<ILogger<StringOperations>>()` with no further configuration was enough, because `ILogger` never returns a value that `CountOccurrences` depends on — it only records information as a side effect. Standing an unconfigured mock in for it changes nothing about the method's return value.
+
+`ReadFile` (see [Features](#features)) is different:
+
+```csharp
+public string ReadFile(IFileReaderConnector fileReader, string fileName)
+{
+    return fileReader.ReadString(fileName);
+}
+```
+
+`ReadFile` receives an `IFileReaderConnector`, uses it to read `fileName`, and returns exactly what that call produces. Here, the mocked dependency actively drives the return value the test asserts against. An unconfigured `Mock<IFileReaderConnector>` returns `null` from `ReadString` by default — and a test asserting against that `null` would never reflect the real logic the method is supposed to execute.
+
+### How do you configure a mock's behavior with Setup?
+
+Moq's `Setup` method defines what a simulated method should do when it's invoked with specific parameters, and `Returns` defines the value it hands back:
+
+```csharp
+var mockFileReader = new Mock<IFileReaderConnector>();
+
+mockFileReader
+    .Setup(fr => fr.ReadString("file.txt"))
+    .Returns("reading file");
+
+var strOperations = new StringOperations();
+var result = strOperations.ReadFile(mockFileReader.Object, "file.txt");
+
+Assert.Equal("reading file", result);
+```
+
+> 📌 The original lesson script names the mocked method `ReadStream`; this repo's actual `IFileReaderConnector` interface (see [Module 0 — Codebase](#module-0--codebase)) declares it as `ReadString`. The snippet above uses the real member name so it compiles against this codebase — the `Setup`/`Returns`/`It.IsAny` mechanics described are identical either way.
+
+Four things happen in that block:
+
+1. A `Mock<IFileReaderConnector>` is created.
+2. `Setup` tells Moq: when `ReadString` is called with `"file.txt"`, intercept it.
+3. `Returns` tells Moq what to hand back when that match happens — `"reading file"`.
+4. `mockFileReader.Object` — the simulated instance, not the mock wrapper itself — is passed into `ReadFile`, the same way [`CountOccurrences`](#how-do-you-mock-a-dependency-with-moq-step-by-step) passes `mockLogger.Object`.
+
+The dependency never touches a real file. It believes it's reading `"file.txt"`, but it returns exactly what `Setup`/`Returns` configured — keeping the test independent of the filesystem, in line with the [FIRST principles](#what-are-the-first-principles-of-testing).
+
+### What happens if the parameter doesn't match the setup?
+
+`Setup` matching is strict by default. If the test calls `ReadFile(mockFileReader.Object, "file2.txt")` while the mock is only configured for `"file.txt"`, Moq finds no matching setup and `ReadString` returns `null` — the same default an entirely unconfigured mock would produce. The mismatch is silent: nothing throws, the test simply receives a value it didn't expect.
+
+### How do you accept any parameter with It.IsAny?
+
+When the exact input doesn't matter — only the fact that *some* call happens — Moq's `It.IsAny<T>()` relaxes the match:
+
+```csharp
+mockFileReader
+    .Setup(fr => fr.ReadString(It.IsAny<string>()))
+    .Returns("reading file");
+```
+
+With this setup, `"file.txt"`, `"file2.txt"`, or any other string all produce the same `"reading file"` result. This is useful once a test wants to validate the logic that runs *after* the dependency returns its value, rather than the specific input passed into that dependency.
+
+> **What does `It.IsAny<T>()` do in Moq?** It widens a `Setup` so it matches a call regardless of the argument passed, instead of requiring an exact value match.
+
+### When does it make sense to simulate complex logic in a dependency?
+
+In this example, `ReadFile` returns exactly what `IFileReaderConnector` gives it — a thin pass-through. In a real service, that same dependency could run a calculation, query a cloud API, or process a larger payload before returning anything. The principle doesn't change with the complexity: `Setup`/`Returns` (and `It.IsAny<T>()` when the input is irrelevant) let a unit test stay independent of physical files, external services, or any resource that lives outside the code actually under test.
+
+Key points to remember:
+
+- `Setup` defines which method call a mock should intercept, and with which parameters.
+- `Returns` defines the value the mock hands back when that call matches.
+- `It.IsAny<T>()` relaxes a `Setup` to match any argument of type `T`.
+- An unconfigured mock — or a `Setup` whose parameters don't match the call — returns the default value for its return type (`null` for reference types).
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `6-libreriamoq`.
+
+## Test Coverage with Coverlet in .NET
+
+Unit test coverage is the metric that tells you how effective the tests you write with xUnit and tools like Moq actually are. If you already know how to build tests, this is the logical next step: measuring how much of your code's logic you're really validating, spotting the gaps, and focusing your effort where it matters most.
+
+A single method can hide several paths at once — conditionals, `if`/`else` branches, calls into other functions. Measuring that complexity by hand would be impractical, so you need an automated tool that hands you a clear, actionable percentage.
+
+### What is unit test coverage, and what is it for?
+
+Coverage is a measurement that returns a percentage of how much of your code is actually executed by your tests. It isn't about writing more tests for the sake of it — it's about understanding where your logic is going unvalidated.
+
+> **What coverage percentage is ideal for a .NET project?** Between 70% and 80% for typical applications. For a library or utility project — like this repo's own `StringManipulation` string-manipulation library (see [Features](#features)) — the bar is higher: above 90%.
+>
+> Reaching 100% is rarely realistic, since templated code, framework plumbing, and third-party libraries fall outside your own business logic. Even so, massive open-source libraries like React or Angular get close to that ceiling, precisely because they're consumed by thousands of people and every function needs to be proven correct.
+
+### What tools exist to measure coverage in .NET?
+
+The right tool depends on your IDE, your budget, and which .NET flavor you're targeting:
+
+- **Analyze Code Coverage for All Tests** — built into Visual Studio Enterprise. Nothing extra to install, but it sits behind an expensive license, typically available only if your company is a Microsoft partner.
+- **NCover** and **OpenCover** — older tools, still functional, but oriented toward the classic .NET Framework rather than modern .NET.
+- **dotCover** — JetBrains' tool, bundled inside ReSharper. One click detects your tests, runs them, and returns a coverage percentage.
+- **Fine Code Coverage** — a free Visual Studio extension funded by community donations. It builds on libraries like OpenCover or Coverlet under the hood, and works for both .NET Framework and modern .NET.
+
+> **What's the difference between dotCover and Fine Code Coverage?** dotCover is a commercial JetBrains tool with its own analysis engine. Fine Code Coverage is free and delegates the actual report generation to open-source libraries such as Coverlet.
+
+### Why is Coverlet the best option for modern .NET?
+
+**Coverlet** is the library worth concentrating on. It's completely free, open source, and cross-platform — it runs the same on Windows, macOS, and Linux — and it's part of the .NET Core open-source library suite, which makes it the natural choice for modern applications like this repo's `StringManipulation` project.
+
+Coverlet supports classic .NET Framework too, but it leans much more toward .NET and .NET Core. If you're working on a legacy .NET Framework app, NCover or OpenCover will likely serve you better; for anything built on modern .NET — this repo included (see [Tech Stack](#tech-stack)) — Coverlet is the way to go.
+
+### What technical advantages does Coverlet offer?
+
+Beyond being free, three strengths make Coverlet practical day to day:
+
+- It works with any testing library — xUnit, NUnit, or MSTest — no lock-in to a specific framework (this repo already uses **xUnit**; see [Tech Stack](#tech-stack)).
+- It can generate coverage reports by combining with additional reporting components.
+- It exposes plenty of configuration parameters to fine-tune the percentage and exclude what you don't want measured.
+
+### How do you install and use Coverlet in your project?
+
+The setup is surprisingly small — just two NuGet packages, both added to your **test** project:
+
+- `coverlet.msbuild`
+- `coverlet.collector`
+
+> 📌 This repo's `StringManipulation.Tests.csproj` already references **`coverlet.collector` `3.1.2`** — it's been there since [Module 1 — First Test](#module-1--first-test), bundled automatically by the `dotnet new xunit` template (see [How do you set this up from the .NET CLI (Visual Studio Code)?](#how-do-you-set-this-up-from-the-net-cli-visual-studio-code)). `coverlet.msbuild`, the package this lesson pairs it with for the `/p:CollectCoverage=true` workflow below, isn't referenced yet — installing it is the natural next step before running the command below against `StringManipulation.Tests`.
+
+With both packages installed, you can pull a coverage report from Visual Studio through the Fine Code Coverage extension, or straight from the terminal with a single command:
+
+```bash
+dotnet test /p:CollectCoverage=true
+```
+
+> **How do you get test coverage with `dotnet test`?** Install the `coverlet.msbuild` and `coverlet.collector` packages, then run `dotnet test` with the `CollectCoverage=true` MSBuild property. The terminal prints the coverage percentage directly in the test run summary.
+
+Two packages and one command — that's enough to get a real measurement of how thoroughly your code is tested, ready to be pointed at this repo's own `StringManipulation` project in a future module.
+
 ## Module Roadmap
 
 | Module | Branch         | Topic                                   | Status        |
@@ -1123,6 +1265,7 @@ The `StringOperations` class exposes the following operations, available from th
 - `Microsoft.Extensions.Logging` `8.0.0` (+ Console provider) — structured logging
 - **xUnit** — introduced starting with Module 1 for unit testing
 - [Moq](https://github.com/devlooped/moq) `4.18.4` — mocking framework for test doubles, introduced in Module 6
+- [Coverlet](https://github.com/coverlet-coverage/coverlet) `3.1.2` (`coverlet.collector`) — cross-platform code coverage, bundled since Module 1; see [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net)
 
 ## Getting Started
 
