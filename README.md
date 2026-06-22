@@ -118,6 +118,14 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Is there a way to get coverage without coverlet.msbuild at all?](#is-there-a-way-to-get-coverage-without-coverletmsbuild-at-all)
   - [How do you turn the raw XML report into a readable HTML report?](#how-do-you-turn-the-raw-xml-report-into-a-readable-html-report)
   - [What if the packages are installed but the percentages still don't show up?](#what-if-the-packages-are-installed-but-the-percentages-still-dont-show-up)
+- [Filtering Coverage with Include and ExcludeFromCodeCoverage](#filtering-coverage-with-include-and-excludefromcodecoverage)
+  - [Why isn't your initial coverage percentage realistic?](#why-isnt-your-initial-coverage-percentage-realistic)
+  - [How do you filter by namespace with the Include parameter?](#how-do-you-filter-by-namespace-with-the-include-parameter)
+  - [How do you exclude classes with ExcludeFromCodeCoverage?](#how-do-you-exclude-classes-with-excludefromcodecoverage)
+  - [How do you activate it from the command with ExcludeByAttribute?](#how-do-you-activate-it-from-the-command-with-excludebyattribute)
+  - [Can ExcludeFromCodeCoverage be applied to Main itself?](#can-excludefromcodecoverage-be-applied-to-main-itself)
+  - [Does ExcludeFromCodeCoverage couple your production code to the test framework?](#does-excludefromcodecoverage-couple-your-production-code-to-the-test-framework)
+  - [What coverage percentage should you actually aim for?](#what-coverage-percentage-should-you-actually-aim-for)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -1226,6 +1234,119 @@ A short checklist for the remaining edge cases reported around this lesson:
 - **Stale build artifacts** — running `dotnet build` once before `dotnet test` clears up cases where the run picks up a build that predates the Coverlet package references.
 - **An already-open `.csproj`** — adding a package through Visual Studio's NuGet UI while the `.csproj` is open in another editor can silently fail to save the new `<PackageReference>`; closing and reopening the file resolves it.
 - **Wrong project path** — `dotnet test` defaults to the current directory; running it from the solution root, from `StringManipulation` (the console app, not the test project), or from any folder other than `StringManipulation.Tests` produces a normal test run with zero coverage output, not an error.
+
+## Filtering Coverage with Include and ExcludeFromCodeCoverage
+
+When you run Coverlet for the first time, the percentage it reports can be misleading — it measures code you never intended to test, like console classes or presentation-layer utilities. This lesson covers `Include`, `ExcludeByAttribute`, and `ExcludeFromCodeCoverage` — the parameters that let your report reflect only actual business logic, continuing from [Troubleshooting Coverlet Coverage Output](#troubleshooting-coverlet-coverage-output).
+
+### Why isn't your initial coverage percentage realistic?
+
+Running `dotnet test /p:CollectCoverage=true` makes Coverlet calculate coverage for the **entire referenced module** — every class in the project under test, with no distinction between business logic and infrastructure code.
+
+In this repo, `StringManipulation` (see [Tech Stack](#tech-stack)) contains exactly that split:
+
+- `StringOperations` — the business logic, the class actually exercised by `StringOperationsTest.cs` (see [Features](#features)).
+- `Program` — the console menu loop from [Run the Console App](#run-the-console-app): it only prints prompts and reads `Console.ReadLine()` input. Nothing in `StringOperationsTest.cs` calls it, and nothing should — it has no business logic to validate.
+
+`Program` shouldn't count toward coverage, because it isn't part of the behavior the test suite is meant to validate. Left unfiltered, it dilutes the percentage with code that was never a target for testing in the first place.
+
+> **What does Coverlet measure by default?** Every class in the module referenced by the test project, with no distinction between business logic and infrastructure code — which is exactly why filtering it matters.
+
+### How do you filter by namespace with the Include parameter?
+
+The first technique filters from the command line, with no code changes. `Include` tells Coverlet which namespace to measure and discards everything else:
+
+```bash
+dotnet test /p:CollectCoverage=true /p:Include="[StringManipulation]StringManipulation.*"
+```
+
+Coverlet walks every class in the project and applies one rule: if the class belongs to the `StringManipulation` namespace, measure it; if it doesn't, skip it entirely. The report that comes back reflects only what you actually wanted to measure.
+
+> 📌 The assembly filter doesn't have to name `StringManipulation` explicitly — `/p:Include="[*]StringManipulation.*"` works the same way, with `[*]` matching any assembly. The explicit form is more precise when a solution has several test-covered projects; the wildcard form is the one most commonly seen in examples, since it works regardless of how the assembly happens to be named.
+
+> 📌 **This repo's classes split differently than the lesson's example.** `StringOperations` and `IFileReaderConnector` (see [Module 0 — Codebase](#module-0--codebase)) are declared inside `namespace StringManipulation { ... }`, so the filter above covers both. `Program.cs`, however, declares `internal class Program` with **no namespace block at all** — it sits in the global namespace, not inside `StringManipulation`. In this specific codebase, that means `Program` is already excluded from an `Include="[StringManipulation]StringManipulation.*"` filter without the filter doing any extra work; here, `Include` mostly confirms an existing boundary rather than actively carving `Program` out of a shared namespace.
+
+### How do you exclude classes with ExcludeFromCodeCoverage?
+
+The second option puts the decision in the code instead of the command — useful when you want to permanently flag which files should never count toward coverage.
+
+`ExcludeFromCodeCoverage` is an attribute from `System.Diagnostics.CodeAnalysis` that Coverlet recognizes out of the box. You place it above the class or method you want excluded:
+
+```csharp
+using System.Diagnostics.CodeAnalysis;
+
+[ExcludeFromCodeCoverage]
+internal class Program
+{
+    // console code
+}
+```
+
+The scope is flexible:
+
+- **On a class** — excludes every method and property inside it.
+- **On a method** — excludes only that specific function.
+- **Combined** — mark the class, then leave one method without the attribute if you still want that one measured.
+
+### How do you activate it from the command with ExcludeByAttribute?
+
+Once classes carry the attribute, a different Coverlet parameter switches the filter on:
+
+```bash
+dotnet test /p:CollectCoverage=true /p:ExcludeByAttribute="ExcludeFromCodeCoverage"
+```
+
+This tells Coverlet: ignore everything carrying that attribute, and measure coverage for the rest.
+
+> **When should you use Include versus ExcludeFromCodeCoverage?** Reach for `Include` when the filter is temporary, or scoped to a single command or CI run, without touching the source. Reach for `ExcludeFromCodeCoverage` when the exclusion is a permanent design decision that should travel with the code itself, regardless of who runs the command or how.
+
+The end result looks similar to the `Include` approach, but the responsibility for it now lives in the source code rather than the command line.
+
+### Can ExcludeFromCodeCoverage be applied to Main itself?
+
+Yes — class-level and method-level exclusion can be combined on the same type. Applied to this repo's own `Program` (see [`StringManipulation/Program.cs`](#module-0--codebase)), both attributes would look like this:
+
+```csharp
+using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
+using StringManipulation;
+
+[ExcludeFromCodeCoverage]
+internal class Program
+{
+    [ExcludeFromCodeCoverage]
+    private static void Main(string[] args)
+    {
+        // console code
+    }
+}
+```
+
+The class-level attribute already excludes everything inside `Program`, including `Main` — stacking the attribute on `Main` too is redundant once the class itself carries it, and only matters if you ever remove the class-level attribute while still wanting `Main` specifically excluded.
+
+### Does ExcludeFromCodeCoverage couple your production code to the test framework?
+
+No. `ExcludeFromCodeCoverage` lives in `System.Diagnostics.CodeAnalysis`, part of the base class library that ships with the .NET SDK itself — not in `xunit`, `Moq`, or any `coverlet.*` package (see [Tech Stack](#tech-stack)). Referencing it from `StringManipulation/Program.cs` wouldn't pull in a test-only dependency any more than using `System.Linq` would.
+
+> **Is there a `.gitignore`-style alternative to marking individual classes?** Yes — Coverlet also exposes an `Exclude` command-line parameter (the mirror image of `Include`) that filters out whole files or folders by path pattern, without touching the source at all. `Include`/`Exclude` and `ExcludeFromCodeCoverage` solve the same problem from two different angles: one lives in the command, the other lives in the code — see [When should you use Include versus ExcludeFromCodeCoverage?](#how-do-you-activate-it-from-the-command-with-excludebyattribute) for which one fits a given situation.
+
+### What coverage percentage should you actually aim for?
+
+Once the report only reflects real business logic, the next step is raising it by writing tests for every uncovered flow in your business functions.
+
+A reasonable target sits between **80% and 90%** coverage. That range buys you real quality assurance without sliding into the trap of chasing every trivial line (see [What is unit test coverage, and what is it for?](#what-is-unit-test-coverage-and-what-is-it-for) for why 100% usually isn't a realistic goal in the first place).
+
+The working loop is simple:
+
+1. Write a new test for an uncovered scenario.
+2. Run `dotnet test` with the coverage parameter.
+3. Confirm the percentage went up, and repeat until you reach the target range.
+
+> **What's the point of filtering coverage in Coverlet?** So the percentage reflects the real quality of your business logic, instead of being inflated or diluted by code you never intended to test in the first place.
+
+This filtering groundwork is also what makes the next step worthwhile: a full, visual coverage report instead of a flat console table.
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `9-atributocoverlet`.
 
 ## Module Roadmap
 
