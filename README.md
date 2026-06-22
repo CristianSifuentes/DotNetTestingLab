@@ -80,6 +80,13 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What happens when you run tests with Skip enabled?](#what-happens-when-you-run-tests-with-skip-enabled)
   - [How do xUnit attributes translate to NUnit and MSTest?](#how-do-xunit-attributes-translate-to-nunit-and-mstest)
   - [What do you do when an assertion you need doesn't exist in xUnit?](#what-do-you-do-when-an-assertion-you-need-doesnt-exist-in-xunit)
+- [Mocking Dependencies with Moq in .NET](#mocking-dependencies-with-moq-in-net)
+  - [What is a mock, and why do you need one in your tests?](#what-is-a-mock-and-why-do-you-need-one-in-your-tests)
+  - [How do mocks work when a component has several dependencies?](#how-do-mocks-work-when-a-component-has-several-dependencies)
+  - [What happens if you test with real dependencies?](#what-happens-if-you-test-with-real-dependencies)
+  - [How do you use the Moq library to simulate dependencies in .NET?](#how-do-you-use-the-moq-library-to-simulate-dependencies-in-net)
+  - [What should you actually test in a service?](#what-should-you-actually-test-in-a-service)
+  - [How do you simulate a database and a logging system with Moq?](#how-do-you-simulate-a-database-and-a-logging-system-with-moq)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -773,6 +780,68 @@ Assert.True(double.IsNaN(result));
 The same idea applies to checking assignable types — if there's no direct method for it, you combine `Assert.False`/`Assert.True` with a type check instead. The underlying philosophy holds across the board: whatever you can do in other testing libraries, you can do in xUnit too — only the syntax changes.
 
 > 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `5-skip`.
+
+## Mocking Dependencies with Moq in .NET
+
+When you start writing unit tests in .NET, you quickly run into a problem: your code depends on things you don't control — databases, cloud services, third-party libraries. This is where the concept of a **mock** comes in: a technique that lets you simulate those dependencies so your tests focus only on the logic you actually wrote. This lesson introduces **Moq**, the most widely used mocking library in .NET, as the tool for the job.
+
+### What is a mock, and why do you need one in your tests?
+
+A **mock** is an imitated or simulated object that replaces a real dependency inside your code during a test run. The goal is to keep your test from depending on external elements you can't control.
+
+Those dependencies can take many shapes:
+
+- AWS or Azure services.
+- Third-party libraries outside your project.
+- External classes, interfaces, or abstract classes.
+- Database connections.
+
+The rule is simple: you simulate what you don't control, and you leave the real code in place for what does belong to your project. That way, your test measures your own logic, not the outside world's.
+
+> **What is a mock in unit testing?** It's an object that imitates the behavior of a real dependency, returning predefined data or responses so your test runs without ever touching the original service.
+
+### How do mocks work when a component has several dependencies?
+
+Picture a component with two external dependencies. Instead of letting your test connect to those real services, you turn both dependencies into mocks — objects that return a specific value or simulate a concrete behavior.
+
+A very common case is the database. A unit test shouldn't depend on a real database. If your code runs a query, what you do is create a mock that simulates the result of that query, and then validate your logic against that simulated value. The test becomes fast, repeatable, and it doesn't fail just because the database happens to be down.
+
+### What happens if you test with real dependencies?
+
+Your test stops being a unit test. It starts depending on the network, the state of a real database, credentials, and services that can change at any moment. The result: slow, fragile tests that are hard to reproduce — exactly what the [FIRST principles](#what-are-the-first-principles-of-testing) warn you against, since a test tied to a live dependency can no longer be **Fast**, **Independent**, or **Repeatable**.
+
+### How do you use the Moq library to simulate dependencies in .NET?
+
+**Moq** is the most popular library in .NET for creating mocks. It lets you define how a simulated dependency should behave inside your tests, without ever touching production code.
+
+Think of a realistic scenario: a task service consumed from an API or a web project. That service typically has two dependencies:
+
+- **Entity Framework**, the most widely used ORM in .NET, for connecting to the database.
+- A **logging service** that records events such as queries, updates, and saves.
+
+Neither one is part of the logic you actually want to test — what matters is validating the service's own behavior.
+
+### What should you actually test in a service?
+
+The logic that you wrote and control. For example:
+
+- Whether the service runs a query and then applies a filter over the results.
+- Whether the service sorts a list after fetching it from the database.
+- Whether the service looks up an item inside a collection and applies a change to it.
+
+That's what belongs in a unit test. *How* the service connects to the database or *how* it writes to the log stays out of scope — it isn't your business logic.
+
+### How do you simulate a database and a logging system with Moq?
+
+With Moq you can inject mocks that replace Entity Framework and the logging system. A frequent option is an **in-memory database**, where the test framework spins up a simulated database that your code interacts with as if it were real.
+
+For logging, the strategy is usually different. Logging exists to collect data and metrics, but it doesn't affect the product's logic. That's why the logger's mock typically does nothing: you inject it as a dependency, the service believes it's recording events, and your test simply ignores that step.
+
+> **Why isn't logging tested in unit tests?** Because unit tests validate business logic, and logging is an auxiliary observability system that doesn't affect the functional outcome of the code.
+
+> **When should you use an in-memory database with Moq?** When your code needs to interact with an Entity Framework context during the test, but without connecting to a real database. The in-memory database simulates that behavior within the test process itself.
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `6-libreriamoq`.
 
 ## Module Roadmap
 
