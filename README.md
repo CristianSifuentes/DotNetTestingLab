@@ -126,6 +126,19 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Can ExcludeFromCodeCoverage be applied to Main itself?](#can-excludefromcodecoverage-be-applied-to-main-itself)
   - [Does ExcludeFromCodeCoverage couple your production code to the test framework?](#does-excludefromcodecoverage-couple-your-production-code-to-the-test-framework)
   - [What coverage percentage should you actually aim for?](#what-coverage-percentage-should-you-actually-aim-for)
+- [Visual Coverage Reports with ReportGenerator and FineCodeCoverage](#visual-coverage-reports-with-reportgenerator-and-finecodecoverage)
+  - [How do you export coverage to a standard XML file?](#how-do-you-export-coverage-to-a-standard-xml-file)
+  - [Why use the Cobertura format instead of something else?](#why-use-the-cobertura-format-instead-of-something-else)
+  - [How do you generate an HTML report with ReportGenerator?](#how-do-you-generate-an-html-report-with-reportgenerator)
+  - [What information can you see in the HTML report?](#what-information-can-you-see-in-the-html-report)
+  - [How do you view coverage without leaving Visual Studio with FineCodeCoverage?](#how-do-you-view-coverage-without-leaving-visual-studio-with-finecodecoverage)
+  - [How do you configure FineCodeCoverage to exclude classes?](#how-do-you-configure-finecodecoverage-to-exclude-classes)
+- [What You Learned in This Course: From Asserts to Coverage](#what-you-learned-in-this-course-from-asserts-to-coverage)
+  - [What did you learn about unit testing in xUnit?](#what-did-you-learn-about-unit-testing-in-xunit)
+  - [Why do Mock and coverage matter in your tests?](#why-do-mock-and-coverage-matter-in-your-tests)
+  - [How do you keep practicing after the course?](#how-do-you-keep-practicing-after-the-course)
+  - [What topics might come up in a job interview?](#what-topics-might-come-up-in-a-job-interview)
+  - [What's the next step to master testing in .NET?](#whats-the-next-step-to-master-testing-in-net)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -1347,6 +1360,128 @@ The working loop is simple:
 This filtering groundwork is also what makes the next step worthwhile: a full, visual coverage report instead of a flat console table.
 
 > 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `9-atributocoverlet`.
+
+## Visual Coverage Reports with ReportGenerator and FineCodeCoverage
+
+A console table of percentages is useful, but it can't show you *which* lines in *which* method are the gap. This lesson turns those numbers into something you can actually read: an HTML report generated with ReportGenerator, and a live view inside Visual Studio through the FineCodeCoverage extension — continuing from [Filtering Coverage with Include and ExcludeFromCodeCoverage](#filtering-coverage-with-include-and-excludefromcodecoverage).
+
+### How do you export coverage to a standard XML file?
+
+The first step is telling Coverlet to write its results in a format any tool can read, instead of just printing a table to the console:
+
+```bash
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+```
+
+Running it still prints the usual summary — tests passed, tests failed, coverage percentages — but it also drops a `coverage.cobertura.xml` file directly inside `StringManipulation.Tests/`, the test project's own folder. That's a different location than the `--collect:"XPlat Code Coverage"` route from [Is there a way to get coverage without coverlet.msbuild at all?](#is-there-a-way-to-get-coverage-without-coverletmsbuild-at-all), which nests the same kind of file under `TestResults/<run-id>/` instead — same file format, different command, different output path.
+
+> **What does the `coverage.cobertura.xml` file contain?** Per-method detail: which lines were covered, which branches were evaluated, and a `true`/`false` flag for whether each one was actually exercised. It's the raw material any visual report — HTML or otherwise — is built from.
+
+### Why use the Cobertura format instead of something else?
+
+Cobertura is the most widely adopted coverage format — not just in .NET, but across other languages and most CI platforms, which tend to accept it without any extra configuration. Settling on it now means that if this project's pipeline ever moves to a cloud CI provider, the coverage step doesn't need to be regenerated or reformatted — it already speaks the format the rest of the ecosystem expects.
+
+### How do you generate an HTML report with ReportGenerator?
+
+The XML is complete, but reading it by hand is impractical. `ReportGenerator` converts it into a browsable report; like `coverlet.console` (see [How do you install Coverlet.Console as a global tool?](#how-do-you-install-coverletconsole-as-a-global-tool)), it's a **global .NET tool**, not a project package, installed once per machine:
+
+```bash
+dotnet tool install -g dotnet-reportgenerator-globaltool
+```
+
+Once installed, running it takes two required parameters and one optional one:
+
+```bash
+reportgenerator -reports:"coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:Html
+```
+
+- **`-reports`** — the path to the `coverage.cobertura.xml` generated in the previous step.
+- **`-targetdir`** — the folder where the report should be written, e.g. `coverage-report`; it's created automatically if it doesn't exist.
+- **`-reporttypes`** — optional; the output format. `Html` is the easiest to read, though ReportGenerator also supports formats like `Badges` or `TextSummary`.
+
+Running it produces a `coverage-report` folder with everything the report needs. Opening `coverage-report/index.html` in a browser gives you a fully navigable report.
+
+### What information can you see in the HTML report?
+
+The report lets you drill into every class the test run touched. For `StringOperations` (see [Features](#features)), each method shows its own coverage percentage, which lines were hit, and which scenarios were never exercised.
+
+> 📌 **The same shape of gap exists in this repo today.** `GetStringLength` (see [Module 0 — Codebase](#module-0--codebase)) only has one test, `GetStringLength_Exception` (see [Which exceptions are worth covering with tests?](#which-exceptions-are-worth-covering-with-tests)) — it covers the `throw new ArgumentNullException()` branch, but no test ever calls `GetStringLength` with a real string to exercise the `return str.Length;` line. That's the same "happy path never tested" pattern the lesson describes, just on a method that returns an `int` instead of a `string`. `RemoveWhitespace` (see [Features](#features)) shows the more extreme version of the same gap: it's fully implemented, but since no test in `StringOperationsTest.cs` calls it at all (see [Practice challenge: testing `RemoveWhitespace`](#practice-challenge-testing-removewhitespace), still open), an HTML report run against this repo today would show it at zero coverage — not because the method is missing, but because nothing exercises it yet.
+
+> **What's a branch in code coverage?** Every possible execution path inside a method — the arms of an `if` or a `switch`. Branch coverage measures how many of those paths your tests actually exercised, the same metric introduced in [How do you interpret line, branch, and method percentages?](#how-do-you-interpret-line-branch-and-method-percentages).
+
+### How do you view coverage without leaving Visual Studio with FineCodeCoverage?
+
+If opening a browser every time feels heavy, the **FineCodeCoverage** extension — already named as an option back in [What tools exist to measure coverage in .NET?](#what-tools-exist-to-measure-coverage-in-net) — surfaces the same kind of information directly inside the IDE. Install it from Visual Studio's Extensions menu, then close and reopen the editor for it to register.
+
+You'll find it at **View > Other Windows > FineCodeCoverage**. From there you can:
+
+- Browse every analyzed class and drill into each test's detail.
+- See at a glance which classes are covered and which were left out.
+- Pull up a report without running a single command manually.
+
+> 📌 FineCodeCoverage doesn't reuse the `coverage.cobertura.xml` from the steps above — it builds its own report by running the whole project fresh, with no filters or exclusions applied by default.
+
+### How do you configure FineCodeCoverage to exclude classes?
+
+Open **Tools > Options** and find the FineCodeCoverage section. From there you choose which engine it runs underneath — Coverlet, OpenCover, or Microsoft's own — and apply filters by directory or by attribute.
+
+The key option is **`ExcludeByAttribute`**: the same idea as the command-line `/p:ExcludeByAttribute="ExcludeFromCodeCoverage"` from [How do you activate it from the command with ExcludeByAttribute?](#how-do-you-activate-it-from-the-command-with-excludebyattribute), just configured once through the UI instead of typed into every command. Pointing it at `ExcludeFromCodeCoverage` keeps `Program` (or any other class already marked with it) out of the percentage here too, without repeating the command-line flag.
+
+> **When should you use ReportGenerator versus FineCodeCoverage?** Use ReportGenerator when the report needs to travel — into a CI/CD pipeline, or shared as a portable HTML folder. Use FineCodeCoverage while actively developing, when what you need is immediate feedback inside Visual Studio rather than a file to hand off.
+
+Between the two, this repo now has two complementary paths to the same answer: one automatable and portable, the other wired straight into the editor.
+
+## What You Learned in This Course: From Asserts to Coverage
+
+Finishing a .NET unit-testing course with xUnit leaves you with a concrete toolbox: structuring tests, verifying results, simulating dependencies, and measuring coverage. This closing lesson ties together everything covered across this README — from [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit) through [Visual Coverage Reports with ReportGenerator and FineCodeCoverage](#visual-coverage-reports-with-reportgenerator-and-finecodecoverage) — and points at what to practice next.
+
+### What did you learn about unit testing in xUnit?
+
+The course moved through the pillars that hold up a real .NET testing strategy — not as disconnected topics, but as layers that build on each other:
+
+- Several testing libraries available in .NET, and why xUnit is one of the most widely used in the industry (see [Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit](#unit-testing-libraries-in-net-mstest-nunit-and-xunit)).
+- A first test project and a first unit test, following recognized good practices (see [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit)).
+- xUnit's different assertion types, used to validate that code behaves as expected (see [Best Practices and Assert Types in xUnit](#best-practices-and-assert-types-in-xunit) and [Testing with StartsWith, Contains, and Throws](#testing-with-startswith-contains-and-throws)).
+- Complex scenarios handled with the Moq library, simulating external dependencies (see [Mocking Dependencies with Moq in .NET](#mocking-dependencies-with-moq-in-net), [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c), and [Simulating Dependencies and Behavior with Mock in Unit Tests](#simulating-dependencies-and-behavior-with-mock-in-unit-tests)).
+- Coverage analysis, used to spot functions and methods that were never actually tested (see [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net) through [Visual Coverage Reports with ReportGenerator and FineCodeCoverage](#visual-coverage-reports-with-reportgenerator-and-finecodecoverage)).
+
+That sequence has a clear logic: first you understand the framework, then you write the test, then you make it robust, and finally you measure how complete it really is.
+
+### Why do Mock and coverage matter in your tests?
+
+Unit tests don't live in a vacuum. When your code depends on databases, external services, or components that don't exist yet, you need a way to isolate it — that's what Moq is for: simulated objects that behave like real dependencies without ever executing them (see [What is a mock, and why do you need one in your tests?](#what-is-a-mock-and-why-do-you-need-one-in-your-tests)).
+
+> **What is the Mock library for in xUnit?** It imitates your project's dependencies, so you can test a unit of code in isolation without invoking real services.
+
+Coverage is the thermometer. It shows you what percentage of your code is actually exercised by tests, and — more importantly — where the gaps are. Without that measurement, it's easy to believe you're testing well while critical functions sit untouched, exactly the kind of blind spot [Why isn't your initial coverage percentage realistic?](#why-isnt-your-initial-coverage-percentage-realistic) and the [`GetStringLength`/`RemoveWhitespace` gap](#what-information-can-you-see-in-the-html-report) called out earlier in this README.
+
+> **What is coverage analysis?** The review that identifies which pieces of code — functions or methods — aren't covered by the tests you've already written.
+
+### How do you keep practicing after the course?
+
+The best way to make this stick is to get your hands dirty again, with two concrete exercises you can start on this repo right now:
+
+1. **Finish the tests left pending throughout the course.** This README already tracks them: [`RemoveWhitespace`](#practice-challenge-testing-removewhitespace), [`TruncateString`](#practice-challenge-testing-truncatestring), and collapsing `IsPalindrome_True`/`IsPalindrome_False` into a single [`[Theory]`](#practice-challenge-parameterizing-ispalindrome).
+2. **Create a new test project with a different library than xUnit, and replicate the same tests.** NUnit or MSTest (see [Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit](#unit-testing-libraries-in-net-mstest-nunit-and-xunit)) are the natural candidates — the attribute and assertion mapping in [How do xUnit attributes translate to NUnit and MSTest?](#how-do-xunit-attributes-translate-to-nunit-and-mstest) is exactly the cheat sheet for that translation.
+
+Comparing syntax, configuration, and ergonomics between the two isn't just about learning a second library — it's about understanding *why* you'd choose one tool over another the next time a real project calls for that decision.
+
+### What topics might come up in a job interview?
+
+Several of the concepts covered are interview staples for .NET developers, worth keeping fresh:
+
+- The **AAA** structure (Arrange, Act, Assert) as the pattern for organizing tests (see [What is the AAA (Arrange-Act-Assert) structure?](#what-is-the-aaa-arrange-act-assert-structure)).
+- The **FIRST** principles that define what a healthy unit test looks like (see [What are the FIRST principles of testing?](#what-are-the-first-principles-of-testing)).
+- Using the **Moq** library to simulate dependencies (see [How do you use the Moq library to simulate dependencies in .NET?](#how-do-you-use-the-moq-library-to-simulate-dependencies-in-net)).
+- xUnit-specific features, like its assertion methods and test attributes (see [The Fact Attribute in Depth](#the-fact-attribute-in-depth) and [Parameterized Tests with Theory and InlineData](#parameterized-tests-with-theory-and-inlinedata)).
+
+> **What's the AAA structure in unit testing?** A pattern that organizes every test into three blocks: Arrange to set up data, Act to execute the behavior, and Assert to verify the result.
+
+Being able to walk through these with a code example is most of the way to a strong interview answer.
+
+### What's the next step to master testing in .NET?
+
+What comes next is open-ended. Integration tests, test doubles beyond mocks — fakes, stubs, spies — or wiring this suite into a CI/CD pipeline are all natural extensions, and every one of them builds directly on what's already in this repo's `StringManipulation.Tests` project.
 
 ## Module Roadmap
 
