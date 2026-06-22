@@ -80,6 +80,26 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What happens when you run tests with Skip enabled?](#what-happens-when-you-run-tests-with-skip-enabled)
   - [How do xUnit attributes translate to NUnit and MSTest?](#how-do-xunit-attributes-translate-to-nunit-and-mstest)
   - [What do you do when an assertion you need doesn't exist in xUnit?](#what-do-you-do-when-an-assertion-you-need-doesnt-exist-in-xunit)
+- [Mocking Dependencies with Moq in .NET](#mocking-dependencies-with-moq-in-net)
+  - [What is a mock, and why do you need one in your tests?](#what-is-a-mock-and-why-do-you-need-one-in-your-tests)
+  - [How do mocks work when a component has several dependencies?](#how-do-mocks-work-when-a-component-has-several-dependencies)
+  - [What happens if you test with real dependencies?](#what-happens-if-you-test-with-real-dependencies)
+  - [How do you use the Moq library to simulate dependencies in .NET?](#how-do-you-use-the-moq-library-to-simulate-dependencies-in-net)
+  - [What should you actually test in a service?](#what-should-you-actually-test-in-a-service)
+  - [How do you simulate a database and a logging system with Moq?](#how-do-you-simulate-a-database-and-a-logging-system-with-moq)
+- [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c)
+  - [Why does a unit test fail when it has external dependencies?](#why-does-a-unit-test-fail-when-it-has-external-dependencies)
+  - [How do you debug a failing test with the Visual Studio debugger?](#how-do-you-debug-a-failing-test-with-the-visual-studio-debugger)
+  - [How do you install the Moq library in a test project?](#how-do-you-install-the-moq-library-in-a-test-project)
+  - [How do you mock a dependency with Moq step by step?](#how-do-you-mock-a-dependency-with-moq-step-by-step)
+  - [How do you verify that the unit test passes correctly?](#how-do-you-verify-that-the-unit-test-passes-correctly)
+  - [When should you use mocks instead of real objects?](#when-should-you-use-mocks-instead-of-real-objects)
+- [Simulating Dependencies and Behavior with Mock in Unit Tests](#simulating-dependencies-and-behavior-with-mock-in-unit-tests)
+  - [Why isn't it enough to create a mock with no configuration?](#why-isnt-it-enough-to-create-a-mock-with-no-configuration)
+  - [How do you configure a mock's behavior with Setup?](#how-do-you-configure-a-mocks-behavior-with-setup)
+  - [What happens if the parameter doesn't match the setup?](#what-happens-if-the-parameter-doesnt-match-the-setup)
+  - [How do you accept any parameter with It.IsAny?](#how-do-you-accept-any-parameter-with-itisany)
+  - [When does it make sense to simulate complex logic in a dependency?](#when-does-it-make-sense-to-simulate-complex-logic-in-a-dependency)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -88,6 +108,7 @@ Each course module lives on its own branch and builds on top of the previous one
   - [Module 3 — Types Assert 2](#module-3--types-assert-2)
   - [Module 4 — Theory InlineData](#module-4--theory-inlinedata)
   - [Module 5 — Skip](#module-5--skip)
+  - [Module 6 — Moq Library](#module-6--moq-library)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -774,6 +795,148 @@ The same idea applies to checking assignable types — if there's no direct meth
 
 > 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `5-skip`.
 
+## Mocking Dependencies with Moq in .NET
+
+When you start writing unit tests in .NET, you quickly run into a problem: your code depends on things you don't control — databases, cloud services, third-party libraries. This is where the concept of a **mock** comes in: a technique that lets you simulate those dependencies so your tests focus only on the logic you actually wrote. This lesson introduces **Moq**, the most widely used mocking library in .NET, as the tool for the job.
+
+### What is a mock, and why do you need one in your tests?
+
+A **mock** is an imitated or simulated object that replaces a real dependency inside your code during a test run. The goal is to keep your test from depending on external elements you can't control.
+
+Those dependencies can take many shapes:
+
+- AWS or Azure services.
+- Third-party libraries outside your project.
+- External classes, interfaces, or abstract classes.
+- Database connections.
+
+The rule is simple: you simulate what you don't control, and you leave the real code in place for what does belong to your project. That way, your test measures your own logic, not the outside world's.
+
+> **What is a mock in unit testing?** It's an object that imitates the behavior of a real dependency, returning predefined data or responses so your test runs without ever touching the original service.
+
+### How do mocks work when a component has several dependencies?
+
+Picture a component with two external dependencies. Instead of letting your test connect to those real services, you turn both dependencies into mocks — objects that return a specific value or simulate a concrete behavior.
+
+A very common case is the database. A unit test shouldn't depend on a real database. If your code runs a query, what you do is create a mock that simulates the result of that query, and then validate your logic against that simulated value. The test becomes fast, repeatable, and it doesn't fail just because the database happens to be down.
+
+### What happens if you test with real dependencies?
+
+Your test stops being a unit test. It starts depending on the network, the state of a real database, credentials, and services that can change at any moment. The result: slow, fragile tests that are hard to reproduce — exactly what the [FIRST principles](#what-are-the-first-principles-of-testing) warn you against, since a test tied to a live dependency can no longer be **Fast**, **Independent**, or **Repeatable**.
+
+### How do you use the Moq library to simulate dependencies in .NET?
+
+**Moq** is the most popular library in .NET for creating mocks. It lets you define how a simulated dependency should behave inside your tests, without ever touching production code.
+
+Think of a realistic scenario: a task service consumed from an API or a web project. That service typically has two dependencies:
+
+- **Entity Framework**, the most widely used ORM in .NET, for connecting to the database.
+- A **logging service** that records events such as queries, updates, and saves.
+
+Neither one is part of the logic you actually want to test — what matters is validating the service's own behavior.
+
+### What should you actually test in a service?
+
+The logic that you wrote and control. For example:
+
+- Whether the service runs a query and then applies a filter over the results.
+- Whether the service sorts a list after fetching it from the database.
+- Whether the service looks up an item inside a collection and applies a change to it.
+
+That's what belongs in a unit test. *How* the service connects to the database or *how* it writes to the log stays out of scope — it isn't your business logic.
+
+### How do you simulate a database and a logging system with Moq?
+
+With Moq you can inject mocks that replace Entity Framework and the logging system. A frequent option is an **in-memory database**, where the test framework spins up a simulated database that your code interacts with as if it were real.
+
+For logging, the strategy is usually different. Logging exists to collect data and metrics, but it doesn't affect the product's logic. That's why the logger's mock typically does nothing: you inject it as a dependency, the service believes it's recording events, and your test simply ignores that step.
+
+> **Why isn't logging tested in unit tests?** Because unit tests validate business logic, and logging is an auxiliary observability system that doesn't affect the functional outcome of the code.
+
+> **When should you use an in-memory database with Moq?** When your code needs to interact with an Entity Framework context during the test, but without connecting to a real database. The in-memory database simulates that behavior within the test process itself.
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `6-libreriamoq`.
+
+## Mocking ILogger with Moq in C#
+
+A function that mixes business logic with a utility like a logger becomes awkward to test: your unit test fails over a dependency you don't even want to validate. This lesson walks through `CountOccurrences` (see [Features](#features)) step by step, showing how to isolate its logic from the `ILogger<StringOperations>` dependency injected into `StringOperations`'s constructor, using a Moq mock.
+
+### Why does a unit test fail when it has external dependencies?
+
+`CountOccurrences` walks the input string with a `foreach`, counts how many characters match, and returns an `int` — pure logic, so far. The complication is one extra line: a call to `_logger.LogInformation` that records how many occurrences were found.
+
+That logger is a generic utility, not part of the business logic. But if you instantiate `StringOperations` with its parameterless constructor — the one that never assigns `_logger` — the field stays `null`, and the moment `CountOccurrences` reaches `_logger.LogInformation`, the test blows up with a `NullReferenceException` that has nothing to do with the counting logic itself.
+
+> **What is a mock in unit testing?** A fictitious object that simulates the behavior of a real dependency. It doesn't run the original logic — it just pretends to exist so your test can run without touching external services.
+
+### How do you debug a failing test with the Visual Studio debugger?
+
+When a test fails for no obvious reason, Visual Studio's **Debug Test** feature is what saves you. The process:
+
+1. Set a breakpoint on the line where you instantiate the object under test.
+2. Right-click the test method and choose **Debug Test**.
+3. Step through the code with the debugger's controls.
+4. Inspect variables and watch where the flow breaks.
+
+Stepping into `CountOccurrences`, the `foreach` counts correctly — the break happens the instant the method tries to use `logger`. The cause: the dependency arrives `null` because nothing ever injected it.
+
+### How do you install the Moq library in a test project?
+
+Moq is installed from the **test project's** NuGet package manager, not the main project's. In Visual Studio:
+
+1. Open **Solution Explorer** and select the test project (`StringManipulation.Tests` in this repo).
+2. Open **Manage NuGet Packages**.
+3. Go to the **Browse** tab and search for `Moq`.
+4. Pick the first result, accept the license, and click **Install**.
+
+Alternatives like AutoFixture or AutoMock exist, but Moq is the most popular mocking library in C# and the one you'll run into in most .NET projects. From Visual Studio Code or the .NET CLI, the equivalent is:
+
+```bash
+dotnet add StringManipulation.Tests/StringManipulation.Tests.csproj package Moq
+```
+
+This repo's `StringManipulation.Tests.csproj` now references **Moq `4.18.4`** alongside `Microsoft.NET.Test.Sdk`, `xunit`, `xunit.runner.visualstudio`, and `coverlet.collector` (see [Tech Stack](#tech-stack)).
+
+### How do you mock a dependency with Moq step by step?
+
+`StringOperations` exposes a constructor overload that takes an `ILogger<StringOperations>`. The fix is to create a mock of that interface and pass its `.Object` to the constructor, inside the **Arrange** step of AAA (see [What is the AAA (Arrange-Act-Assert) structure?](#what-is-the-aaa-arrange-act-assert-structure)):
+
+```csharp
+[Fact]
+public void CountOccurrences()
+{
+    var mockLogger = new Mock<ILogger<StringOperations>>();
+    var strOperations = new StringOperations(mockLogger.Object);
+
+    var result = strOperations.CountOccurrences("Hello platzi", 'l');
+
+    Assert.Equal(3, result);
+}
+```
+
+Two details change everything here: `mockLogger` has to be declared **before** instantiating `StringOperations`, since that class receives the dependency through its constructor. And you pass `mockLogger.Object`, not the mock itself — `.Object` is where the simulated instance that Moq generates internally actually lives.
+
+> **What does `new Mock<T>()` do exactly?** It creates a fake object of type `T` that satisfies its contract without running any real logic. It lets the class under test receive the dependency without executing behavior you don't care about validating.
+
+### How do you verify that the unit test passes correctly?
+
+After installing Moq and rewriting the arrange step, running the test can surface a second, unrelated failure: `Assert.Equal` expecting `2` when the actual result is `3`. The fix isn't in the mock — it's in the expectation: `"Hello platzi"` contains three `l` characters (two in `"Hello"`, one in `"platzi"`), not two.
+
+Adjusting the expected value to `3` makes the test pass. If you ever hit a compilation error or null-reference issue right after adding Moq, the usual fix is to rebuild the test project so the new package reference resolves correctly.
+
+### When should you use mocks instead of real objects?
+
+Reaching for a mock makes sense in specific scenarios:
+
+- Dependencies that write to the console, files, or a database, like a logger.
+- External services over HTTP that would slow the test down.
+- Abstract interfaces whose real implementation doesn't contribute to the logic you're validating.
+- Components with side effects that would leave the test environment dirty.
+
+The core idea: a unit test should validate a single unit of logic without dragging in auxiliary behavior. Moq gives you exactly that clean boundary.
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `6-libreriamoq`.
+
 ## Module Roadmap
 
 | Module | Branch         | Topic                                   | Status        |
@@ -784,6 +947,7 @@ The same idea applies to checking assignable types — if there's no direct meth
 | 3      | `3-types-assert2` | `StartsWith`/`Contains`/`Throws` — `QuantintyInWords` and `GetStringLength_Exception` | ✅ Done |
 | 4      | `4-theory-inlinedata` | First parameterized test — `Theory`/`InlineData` on `FromRomanToNumber` | ✅ Done |
 | 5      | `5-skip`       | `[Fact(Skip = "...")]` to pause a test without deleting it — `ConcatenateStrings` paused pending `TICKET-001` | ✅ Done |
+| 6      | `6-moqlibrary` | First mocking dependency — `Moq 4.18.4` added to the test project; `CountOccurrences` mocks `ILogger<StringOperations>` | ✅ Done |
 
 > ✏️ **Maintainer note:** when a new module branch is published, update its row above (branch name, topic, status) and add a dedicated section for it under [Project Structure](#project-structure), following the same format as [Module 0](#module-0--codebase).
 
@@ -802,8 +966,8 @@ DotNetTestingLab/
 │   ├── IFileReaderConnector.cs         # File reader abstraction + implementation
 │   └── information.txt                 # Sample data file used by the "read file" option
 └── StringManipulation.Tests/           # Module 1 — first xUnit test project
-    ├── StringManipulation.Tests.csproj # net8.0, ProjectReference -> StringManipulation.csproj
-    ├── StringOperationsTest.cs         # M1-2: Concatenate/IsPalindrome · M3: QuantintyInWords/GetStringLength_Exception · M4: FromRomanToNumber [Theory] · M5: ConcatenateStrings [Skip]
+    ├── StringManipulation.Tests.csproj # net8.0, ProjectReference -> StringManipulation.csproj · M6: + Moq 4.18.4
+    ├── StringOperationsTest.cs         # M1-2: Concatenate/IsPalindrome · M3: QuantintyInWords/GetStringLength_Exception · M4: FromRomanToNumber [Theory] · M5: ConcatenateStrings [Skip] · M6: CountOccurrences [Moq<ILogger<T>>]
     ├── UnitTest1.cs                    # Default xUnit template scaffold (unused, left as-is)
     └── Usings.cs                       # global using Xunit;
 ```
@@ -913,6 +1077,27 @@ Branch [`5-skip`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/5-s
 - **Ticket reference is a placeholder** — the message points at `TICKET-001`, a stand-in rather than an entry in a real Jira/Azure DevOps project, since this repo doesn't run one. The convention is what the lesson cares about — see [Why should you create a backlog ticket when you skip a test?](#why-should-you-create-a-backlog-ticket-when-you-skip-a-test) — the specific tracker is an implementation detail for a real project.
 - **Open item carried forward** — `ConcatenateStrings` was already flagged for its missing `// Arrange` comment back in [Module 2](#module-2--types-assert); that inconsistency is still present and now sits alongside the new `Skip` reason, untouched by this module.
 
+### Module 6 — Moq Library
+
+Branch [`6-moqlibrary`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/6-moqlibrary) introduces the suite's **first mocking dependency**, Moq, across two commits — one documents the concepts in the README, the other wires up the package and the test that needed it.
+
+| Commit | Message | What it actually did |
+|--------|---------|------------------------|
+| `3d5bcc1` | Add new information for Mocking Dependencies with Moq in .NET | Documents what a mock is, why testing with real dependencies breaks test isolation, and how Moq fits into testing a service's Entity Framework/logging dependencies — README only, no code changes (see [Mocking Dependencies with Moq in .NET](#mocking-dependencies-with-moq-in-net)). |
+| `13e293d` | Add code and new information for Moq - 4.18.4 | Adds `<PackageReference Include="Moq" Version="4.18.4" />` to `StringManipulation.Tests.csproj` and a new `[Fact]`, `CountOccurrences`, that mocks `ILogger<StringOperations>` with `new Mock<ILogger<StringOperations>>()` and passes `mockLogger.Object` into `StringOperations`'s logging constructor (see [How do you mock a dependency with Moq step by step?](#how-do-you-mock-a-dependency-with-moq-step-by-step)). |
+
+| File | Change |
+|------|--------|
+| `StringManipulation.Tests.csproj` | Gains one line: a `Moq 4.18.4` package reference, added alongside the existing `Microsoft.NET.Test.Sdk`, `xunit`, `xunit.runner.visualstudio`, and `coverlet.collector` references. |
+| `StringOperationsTest.cs` | Two new `using` directives — `Moq` and `Microsoft.Extensions.Logging` — and one new `[Fact]`, `CountOccurrences`, that arranges a `Mock<ILogger<StringOperations>>`, constructs `StringOperations` with `mockLogger.Object`, calls `CountOccurrences("Hello platzi", 'l')`, and asserts the result equals `3`. |
+
+**Evolutionary changes vs. Module 5:**
+
+- **Added** — the `Moq` package reference and the `CountOccurrences` test (+14 lines across both files). No other file under `StringManipulation.Tests/` or `StringManipulation/` changed.
+- **Test count** — went from 7 discoverable test results in Module 5 (5 `[Fact]`s + 1 `[Theory]` with 3 rows, plus the unused `UnitTest1.Test1`) to 8, adding `CountOccurrences` to the mix.
+- **First mocked dependency in the suite** — every prior test exercised `StringOperations` through its parameterless constructor; `CountOccurrences` is the first to use the constructor overload that takes `ILogger<StringOperations>`, and the first to inject a test double instead of a real (or absent) dependency (see [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c)).
+- **`StringOperations` itself is untouched** — the `ILogger<StringOperations>` constructor overload and the `_logger.LogInformation` call inside `CountOccurrences` already existed in the production code before this module; the module's actual work was entirely on the test side (see [Why does a unit test fail when it has external dependencies?](#why-does-a-unit-test-fail-when-it-has-external-dependencies)).
+
 ## Features
 
 The `StringOperations` class exposes the following operations, available from the console menu:
@@ -937,6 +1122,7 @@ The `StringOperations` class exposes the following operations, available from th
 - [Humanizer](https://github.com/Humanizr/Humanizer) `2.14.1` — pluralization, quantity-to-words, Roman numeral conversion
 - `Microsoft.Extensions.Logging` `8.0.0` (+ Console provider) — structured logging
 - **xUnit** — introduced starting with Module 1 for unit testing
+- [Moq](https://github.com/devlooped/moq) `4.18.4` — mocking framework for test doubles, introduced in Module 6
 
 ## Getting Started
 
