@@ -100,6 +100,45 @@ Each course module lives on its own branch and builds on top of the previous one
   - [What happens if the parameter doesn't match the setup?](#what-happens-if-the-parameter-doesnt-match-the-setup)
   - [How do you accept any parameter with It.IsAny?](#how-do-you-accept-any-parameter-with-itisany)
   - [When does it make sense to simulate complex logic in a dependency?](#when-does-it-make-sense-to-simulate-complex-logic-in-a-dependency)
+- [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net)
+  - [What is unit test coverage, and what is it for?](#what-is-unit-test-coverage-and-what-is-it-for)
+  - [What tools exist to measure coverage in .NET?](#what-tools-exist-to-measure-coverage-in-net)
+  - [Why is Coverlet the best option for modern .NET?](#why-is-coverlet-the-best-option-for-modern-net)
+  - [What technical advantages does Coverlet offer?](#what-technical-advantages-does-coverlet-offer)
+  - [How do you install and use Coverlet in your project?](#how-do-you-install-and-use-coverlet-in-your-project)
+- [Running Coverlet and Reading Its Coverage Report](#running-coverlet-and-reading-its-coverage-report)
+  - [Which Coverlet packages do you actually need to install?](#which-coverlet-packages-do-you-actually-need-to-install)
+  - [How do you install Coverlet.Console as a global tool?](#how-do-you-install-coverletconsole-as-a-global-tool)
+  - [How do you run the coverage command with dotnet test?](#how-do-you-run-the-coverage-command-with-dotnet-test)
+  - [How do you interpret line, branch, and method percentages?](#how-do-you-interpret-line-branch-and-method-percentages)
+  - [Why is the branches metric the most important one?](#why-is-the-branches-metric-the-most-important-one)
+- [Troubleshooting Coverlet Coverage Output](#troubleshooting-coverlet-coverage-output)
+  - [Why does dotnet test run but never print a coverage table?](#why-does-dotnet-test-run-but-never-print-a-coverage-table)
+  - [Why might the pinned coverlet.console version matter?](#why-might-the-pinned-coverletconsole-version-matter)
+  - [Is there a way to get coverage without coverlet.msbuild at all?](#is-there-a-way-to-get-coverage-without-coverletmsbuild-at-all)
+  - [How do you turn the raw XML report into a readable HTML report?](#how-do-you-turn-the-raw-xml-report-into-a-readable-html-report)
+  - [What if the packages are installed but the percentages still don't show up?](#what-if-the-packages-are-installed-but-the-percentages-still-dont-show-up)
+- [Filtering Coverage with Include and ExcludeFromCodeCoverage](#filtering-coverage-with-include-and-excludefromcodecoverage)
+  - [Why isn't your initial coverage percentage realistic?](#why-isnt-your-initial-coverage-percentage-realistic)
+  - [How do you filter by namespace with the Include parameter?](#how-do-you-filter-by-namespace-with-the-include-parameter)
+  - [How do you exclude classes with ExcludeFromCodeCoverage?](#how-do-you-exclude-classes-with-excludefromcodecoverage)
+  - [How do you activate it from the command with ExcludeByAttribute?](#how-do-you-activate-it-from-the-command-with-excludebyattribute)
+  - [Can ExcludeFromCodeCoverage be applied to Main itself?](#can-excludefromcodecoverage-be-applied-to-main-itself)
+  - [Does ExcludeFromCodeCoverage couple your production code to the test framework?](#does-excludefromcodecoverage-couple-your-production-code-to-the-test-framework)
+  - [What coverage percentage should you actually aim for?](#what-coverage-percentage-should-you-actually-aim-for)
+- [Visual Coverage Reports with ReportGenerator and FineCodeCoverage](#visual-coverage-reports-with-reportgenerator-and-finecodecoverage)
+  - [How do you export coverage to a standard XML file?](#how-do-you-export-coverage-to-a-standard-xml-file)
+  - [Why use the Cobertura format instead of something else?](#why-use-the-cobertura-format-instead-of-something-else)
+  - [How do you generate an HTML report with ReportGenerator?](#how-do-you-generate-an-html-report-with-reportgenerator)
+  - [What information can you see in the HTML report?](#what-information-can-you-see-in-the-html-report)
+  - [How do you view coverage without leaving Visual Studio with FineCodeCoverage?](#how-do-you-view-coverage-without-leaving-visual-studio-with-finecodecoverage)
+  - [How do you configure FineCodeCoverage to exclude classes?](#how-do-you-configure-finecodecoverage-to-exclude-classes)
+- [What You Learned in This Course: From Asserts to Coverage](#what-you-learned-in-this-course-from-asserts-to-coverage)
+  - [What did you learn about unit testing in xUnit?](#what-did-you-learn-about-unit-testing-in-xunit)
+  - [Why do Mock and coverage matter in your tests?](#why-do-mock-and-coverage-matter-in-your-tests)
+  - [How do you keep practicing after the course?](#how-do-you-keep-practicing-after-the-course)
+  - [What topics might come up in a job interview?](#what-topics-might-come-up-in-a-job-interview)
+  - [What's the next step to master testing in .NET?](#whats-the-next-step-to-master-testing-in-net)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -937,6 +976,513 @@ The core idea: a unit test should validate a single unit of logic without draggi
 
 > 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `6-libreriamoq`.
 
+## Simulating Dependencies and Behavior with Mock in Unit Tests
+
+Simulating a dependency that does nothing is straightforward — that's exactly what the `ILogger<StringOperations>` mock in [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c) does. But what happens when the dependency returns a value the method under test actually depends on to keep running? This lesson covers `Setup`, `Returns`, and `It.IsAny<T>()` — the tools Moq gives you to configure exactly what a mock does when it's called — using `StringOperations.ReadFile` and its `IFileReaderConnector` dependency as the example.
+
+### Why isn't it enough to create a mock with no configuration?
+
+In [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c), creating `new Mock<ILogger<StringOperations>>()` with no further configuration was enough, because `ILogger` never returns a value that `CountOccurrences` depends on — it only records information as a side effect. Standing an unconfigured mock in for it changes nothing about the method's return value.
+
+`ReadFile` (see [Features](#features)) is different:
+
+```csharp
+public string ReadFile(IFileReaderConnector fileReader, string fileName)
+{
+    return fileReader.ReadString(fileName);
+}
+```
+
+`ReadFile` receives an `IFileReaderConnector`, uses it to read `fileName`, and returns exactly what that call produces. Here, the mocked dependency actively drives the return value the test asserts against. An unconfigured `Mock<IFileReaderConnector>` returns `null` from `ReadString` by default — and a test asserting against that `null` would never reflect the real logic the method is supposed to execute.
+
+### How do you configure a mock's behavior with Setup?
+
+Moq's `Setup` method defines what a simulated method should do when it's invoked with specific parameters, and `Returns` defines the value it hands back:
+
+```csharp
+var mockFileReader = new Mock<IFileReaderConnector>();
+
+mockFileReader
+    .Setup(fr => fr.ReadString("file.txt"))
+    .Returns("reading file");
+
+var strOperations = new StringOperations();
+var result = strOperations.ReadFile(mockFileReader.Object, "file.txt");
+
+Assert.Equal("reading file", result);
+```
+
+> 📌 The original lesson script names the mocked method `ReadStream`; this repo's actual `IFileReaderConnector` interface (see [Module 0 — Codebase](#module-0--codebase)) declares it as `ReadString`. The snippet above uses the real member name so it compiles against this codebase — the `Setup`/`Returns`/`It.IsAny` mechanics described are identical either way.
+
+Four things happen in that block:
+
+1. A `Mock<IFileReaderConnector>` is created.
+2. `Setup` tells Moq: when `ReadString` is called with `"file.txt"`, intercept it.
+3. `Returns` tells Moq what to hand back when that match happens — `"reading file"`.
+4. `mockFileReader.Object` — the simulated instance, not the mock wrapper itself — is passed into `ReadFile`, the same way [`CountOccurrences`](#how-do-you-mock-a-dependency-with-moq-step-by-step) passes `mockLogger.Object`.
+
+The dependency never touches a real file. It believes it's reading `"file.txt"`, but it returns exactly what `Setup`/`Returns` configured — keeping the test independent of the filesystem, in line with the [FIRST principles](#what-are-the-first-principles-of-testing).
+
+### What happens if the parameter doesn't match the setup?
+
+`Setup` matching is strict by default. If the test calls `ReadFile(mockFileReader.Object, "file2.txt")` while the mock is only configured for `"file.txt"`, Moq finds no matching setup and `ReadString` returns `null` — the same default an entirely unconfigured mock would produce. The mismatch is silent: nothing throws, the test simply receives a value it didn't expect.
+
+### How do you accept any parameter with It.IsAny?
+
+When the exact input doesn't matter — only the fact that *some* call happens — Moq's `It.IsAny<T>()` relaxes the match:
+
+```csharp
+mockFileReader
+    .Setup(fr => fr.ReadString(It.IsAny<string>()))
+    .Returns("reading file");
+```
+
+With this setup, `"file.txt"`, `"file2.txt"`, or any other string all produce the same `"reading file"` result. This is useful once a test wants to validate the logic that runs *after* the dependency returns its value, rather than the specific input passed into that dependency.
+
+> **What does `It.IsAny<T>()` do in Moq?** It widens a `Setup` so it matches a call regardless of the argument passed, instead of requiring an exact value match.
+
+### When does it make sense to simulate complex logic in a dependency?
+
+In this example, `ReadFile` returns exactly what `IFileReaderConnector` gives it — a thin pass-through. In a real service, that same dependency could run a calculation, query a cloud API, or process a larger payload before returning anything. The principle doesn't change with the complexity: `Setup`/`Returns` (and `It.IsAny<T>()` when the input is irrelevant) let a unit test stay independent of physical files, external services, or any resource that lives outside the code actually under test.
+
+Key points to remember:
+
+- `Setup` defines which method call a mock should intercept, and with which parameters.
+- `Returns` defines the value the mock hands back when that call matches.
+- `It.IsAny<T>()` relaxes a `Setup` to match any argument of type `T`.
+- An unconfigured mock — or a `Setup` whose parameters don't match the call — returns the default value for its return type (`null` for reference types).
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `6-libreriamoq`.
+
+## Test Coverage with Coverlet in .NET
+
+Unit test coverage is the metric that tells you how effective the tests you write with xUnit and tools like Moq actually are. If you already know how to build tests, this is the logical next step: measuring how much of your code's logic you're really validating, spotting the gaps, and focusing your effort where it matters most.
+
+A single method can hide several paths at once — conditionals, `if`/`else` branches, calls into other functions. Measuring that complexity by hand would be impractical, so you need an automated tool that hands you a clear, actionable percentage.
+
+### What is unit test coverage, and what is it for?
+
+Coverage is a measurement that returns a percentage of how much of your code is actually executed by your tests. It isn't about writing more tests for the sake of it — it's about understanding where your logic is going unvalidated.
+
+> **What coverage percentage is ideal for a .NET project?** Between 70% and 80% for typical applications. For a library or utility project — like this repo's own `StringManipulation` string-manipulation library (see [Features](#features)) — the bar is higher: above 90%.
+>
+> Reaching 100% is rarely realistic, since templated code, framework plumbing, and third-party libraries fall outside your own business logic. Even so, massive open-source libraries like React or Angular get close to that ceiling, precisely because they're consumed by thousands of people and every function needs to be proven correct.
+
+### What tools exist to measure coverage in .NET?
+
+The right tool depends on your IDE, your budget, and which .NET flavor you're targeting:
+
+- **Analyze Code Coverage for All Tests** — built into Visual Studio Enterprise. Nothing extra to install, but it sits behind an expensive license, typically available only if your company is a Microsoft partner.
+- **NCover** and **OpenCover** — older tools, still functional, but oriented toward the classic .NET Framework rather than modern .NET.
+- **dotCover** — JetBrains' tool, bundled inside ReSharper. One click detects your tests, runs them, and returns a coverage percentage.
+- **Fine Code Coverage** — a free Visual Studio extension funded by community donations. It builds on libraries like OpenCover or Coverlet under the hood, and works for both .NET Framework and modern .NET.
+
+> **What's the difference between dotCover and Fine Code Coverage?** dotCover is a commercial JetBrains tool with its own analysis engine. Fine Code Coverage is free and delegates the actual report generation to open-source libraries such as Coverlet.
+
+### Why is Coverlet the best option for modern .NET?
+
+**Coverlet** is the library worth concentrating on. It's completely free, open source, and cross-platform — it runs the same on Windows, macOS, and Linux — and it's part of the .NET Core open-source library suite, which makes it the natural choice for modern applications like this repo's `StringManipulation` project.
+
+Coverlet supports classic .NET Framework too, but it leans much more toward .NET and .NET Core. If you're working on a legacy .NET Framework app, NCover or OpenCover will likely serve you better; for anything built on modern .NET — this repo included (see [Tech Stack](#tech-stack)) — Coverlet is the way to go.
+
+### What technical advantages does Coverlet offer?
+
+Beyond being free, three strengths make Coverlet practical day to day:
+
+- It works with any testing library — xUnit, NUnit, or MSTest — no lock-in to a specific framework (this repo already uses **xUnit**; see [Tech Stack](#tech-stack)).
+- It can generate coverage reports by combining with additional reporting components.
+- It exposes plenty of configuration parameters to fine-tune the percentage and exclude what you don't want measured.
+
+### How do you install and use Coverlet in your project?
+
+The setup is surprisingly small — just two NuGet packages, both added to your **test** project:
+
+- `coverlet.msbuild`
+- `coverlet.collector`
+
+> 📌 This repo's `StringManipulation.Tests.csproj` already references **`coverlet.collector` `3.1.2`** — it's been there since [Module 1 — First Test](#module-1--first-test), bundled automatically by the `dotnet new xunit` template (see [How do you set this up from the .NET CLI (Visual Studio Code)?](#how-do-you-set-this-up-from-the-net-cli-visual-studio-code)). `coverlet.msbuild`, the package this lesson pairs it with for the `/p:CollectCoverage=true` workflow below, isn't referenced yet — installing it is the natural next step before running the command below against `StringManipulation.Tests`.
+
+With both packages installed, you can pull a coverage report from Visual Studio through the Fine Code Coverage extension, or straight from the terminal with a single command:
+
+```bash
+dotnet test /p:CollectCoverage=true
+```
+
+> **How do you get test coverage with `dotnet test`?** Install the `coverlet.msbuild` and `coverlet.collector` packages, then run `dotnet test` with the `CollectCoverage=true` MSBuild property. The terminal prints the coverage percentage directly in the test run summary.
+
+Two packages and one command — that's enough to get a real measurement of how thoroughly your code is tested, ready to be pointed at this repo's own `StringManipulation` project in a future module.
+
+## Running Coverlet and Reading Its Coverage Report
+
+Coverlet isn't a single package — it's a small family of tools, each covering a different stage of the workflow: collecting coverage during a test run, wiring that collection into MSBuild, and running it as a standalone CLI. This lesson walks through all three, and through reading the percentages they report, continuing directly from [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net).
+
+### Which Coverlet packages do you actually need to install?
+
+Three pieces make up the toolchain, and each does something different:
+
+- **`coverlet.collector`** — ships by default with the xUnit project template (`dotnet new xunit`) and collects coverage data while the test run executes. This repo's `StringManipulation.Tests.csproj` has had it since [Module 1 — First Test](#module-1--first-test).
+- **`coverlet.msbuild`** — installed from the NuGet package manager (or `dotnet add package coverlet.msbuild`), and is what lets `dotnet test` report coverage directly through an MSBuild property, from Visual Studio or the terminal.
+- **`coverlet.console`** — a **global .NET tool**, not a project package. It's installed once per machine with `dotnet tool install`, not added to any `.csproj`.
+
+> **Why does installing `coverlet.console` as a project NuGet package fail?** Because it isn't a project library — it's a global CLI tool. Installing it through the project's package manager throws an error; the correct path is `dotnet tool install --global coverlet.console`.
+
+### How do you install Coverlet.Console as a global tool?
+
+Coverlet.Console is installed once per machine, not per project:
+
+```bash
+dotnet tool install --global coverlet.console
+```
+
+Run that from a terminal (**View > Terminal** in Visual Studio, or any shell). If it's already installed, the CLI reports that. Otherwise it walks through the install and ends with a success message — after that, `coverlet` is available as a top-level command from any directory, not just from inside `StringManipulation.Tests`.
+
+### How do you run the coverage command with dotnet test?
+
+With the packages in place, running coverage from `StringManipulation.Tests` is the same `dotnet test` from [How do you run xUnit tests from the terminal?](#how-do-you-run-xunit-tests-from-the-terminal), with one extra MSBuild property:
+
+```bash
+dotnet test /p:CollectCoverage=true
+```
+
+`CollectCoverage=true` tells Coverlet to calculate coverage percentages on top of the regular test run and print them once the tests finish. In the lesson's own run, the result was **10 tests passed, 1 skipped**, followed by a table of percentages for the `StringManipulation` class.
+
+> 📌 **Tried against this repo as it stands today:** running the exact command above from `StringManipulation.Tests` executes all 10 discoverable tests (`ConcatenateStrings` skipped, the rest passing or failing depending on locale — see [the `QuantintyInWords` culture callout](#how-do-you-test-that-a-string-starts-with-a-given-word)), but prints **no coverage table**. That confirms the gap flagged in the previous section: `coverlet.collector` alone doesn't hook into the `/p:CollectCoverage=true` MSBuild property — `coverlet.msbuild` does. Adding that package is what turns the command above from "just run the tests" into "run the tests and report coverage."
+
+> **What does the `CollectCoverage` parameter do in `dotnet test`?** It turns on Coverlet's metrics collection during the test run and returns a table of line, branch, and method percentages once the run finishes — provided `coverlet.msbuild` is referenced in the test project.
+
+### How do you interpret line, branch, and method percentages?
+
+Coverlet's report breaks coverage into three distinct numbers, and each one tells you something different. In the lesson's example run against the course's `StringManipulation` class, the numbers were **23.95% lines**, **20% branches**, and **60% methods** — three metrics that look similar but measure very different things:
+
+- **Line coverage** — the percentage of code lines that were actually executed while running the tests.
+- **Method coverage** — how many of the class's functions were invoked at least once by some test.
+- **Branch coverage** — how many logical paths — `if`s, conditions, alternate flows — were actually exercised.
+
+Method coverage tends to look generous, since a single basic test is enough to mark an entire method as "covered." Branch coverage is the stricter, more meaningful number.
+
+### Why is the branches metric the most important one?
+
+A method can hide more than one path through it. Take this repo's own `TruncateString` (see [Features](#features)):
+
+```csharp
+public string TruncateString(string input, int maxLength)
+{
+    if (maxLength <= 0)
+    {
+        throw new ArgumentOutOfRangeException();
+    }
+
+    if (string.IsNullOrEmpty(input) || maxLength >= input.Length)
+    {
+        return input;
+    }
+
+    return input.Substring(0, maxLength);
+}
+```
+
+That's three possible flows in a single method: the `ArgumentOutOfRangeException` guard, the early `return input`, and the final `Substring` truncation. Calling `TruncateString` with just one of those three inputs is already enough for **method coverage** to mark it "covered" — but branch coverage stays low, because the other two paths never ran.
+
+The only way to raise that number is to read the code, identify every condition, and write a dedicated test for each path — exactly the gap the still-open [Practice challenge: testing `TruncateString`](#practice-challenge-testing-truncatestring) exists to close in this repo.
+
+That's why, when coverage is part of your quality bar — with or without TDD — branches are the number that best reflects how robust your tests really are. A method count of 60% can comfortably coexist with a branch count of 20%, and that gap is exactly where your code's untested logic hides.
+
+Key points to remember:
+
+- `coverlet.collector` collects coverage during the test run and ships with the xUnit template; `coverlet.msbuild` is what surfaces that data through `dotnet test /p:CollectCoverage=true`; `coverlet.console` is a separate global CLI tool installed with `dotnet tool install`.
+- Line, method, and branch coverage measure three different things — method coverage is the most forgiving, branch coverage the strictest.
+- A high method-coverage percentage can mask a low branch-coverage percentage; branches are what actually tell you whether every `if` in your code has been exercised by a test.
+
+## Troubleshooting Coverlet Coverage Output
+
+The two most common snags after wiring up Coverlet aren't conceptual — they're operational: running the command from the wrong folder, or hitting a Coverlet package version that doesn't cooperate with the installed SDK. This section collects the fixes that consistently resolve them, continuing from [Running Coverlet and Reading Its Coverage Report](#running-coverlet-and-reading-its-coverage-report).
+
+### Why does dotnet test run but never print a coverage table?
+
+The single most common cause — confirmed against this very repo in [the previous section's callout](#how-do-you-run-the-coverage-command-with-dotnet-test) — is running the command from the wrong working directory. `dotnet test /p:CollectCoverage=true` has to run from inside the **test** project folder, `StringManipulation.Tests` here, not from the solution root or from the `StringManipulation` console project. If you'd rather not `cd`, point `dotnet test` straight at the test project's `.csproj` instead:
+
+```bash
+dotnet test StringManipulation.Tests/StringManipulation.Tests.csproj /p:CollectCoverage=true
+```
+
+The second most common cause is a missing or stale `coverlet.msbuild` reference (see [Which Coverlet packages do you actually need to install?](#which-coverlet-packages-do-you-actually-need-to-install)) — without it, `CollectCoverage=true` is silently ignored, exactly what this README's own callout found when testing the command against this repo's current `.csproj`. The fix: add the package, then **rebuild** with `dotnet build`. NuGet can fail to persist a new `<PackageReference>` if the `.csproj` was already open in an editor when the package was added, so closing and reopening it (or editing the XML directly, as in [Module 6 — Moq Library](#module-6--moq-library)) is worth trying too.
+
+### Why might the pinned coverlet.console version matter?
+
+NuGet's own "install" snippet for `coverlet.console` doesn't always resolve to a version that behaves correctly against a given SDK. Pinning an explicit version sidesteps that:
+
+```bash
+dotnet tool install --global coverlet.console --version 6.0.4
+```
+
+Since it's a **global tool** (see [How do you install Coverlet.Console as a global tool?](#how-do-you-install-coverletconsole-as-a-global-tool)), reinstalling with `--version` simply overwrites whatever version is currently registered — no project file is involved.
+
+### Is there a way to get coverage without coverlet.msbuild at all?
+
+Yes — `coverlet.collector`, the package this repo has had since [Module 1 — First Test](#module-1--first-test), already plugs into `dotnet test` through VSTest's own data-collector pipeline, with no need for `coverlet.msbuild` or the `/p:CollectCoverage=true` property:
+
+```bash
+dotnet test --collect:"XPlat Code Coverage"
+```
+
+This writes a `coverage.cobertura.xml` file under `StringManipulation.Tests/TestResults/<run-id>/` instead of printing a percentage table to the console. It's the standard .NET SDK approach, and it works with the packages this repo already references today — `coverlet.msbuild` is only needed for the inline console table from [Running Coverlet and Reading Its Coverage Report](#running-coverlet-and-reading-its-coverage-report).
+
+### How do you turn the raw XML report into a readable HTML report?
+
+The `coverage.cobertura.xml` produced by `--collect:"XPlat Code Coverage"` isn't meant to be read directly. `ReportGenerator`, installed as another global tool, turns it into a browsable HTML report:
+
+```bash
+dotnet tool install -g dotnet-reportgenerator-globaltool
+
+dotnet reportgenerator -reports:"./TestResults/**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
+```
+
+Opening `coveragereport/index.html` in a browser shows coverage line by line — the same line/branch/method breakdown from [How do you interpret line, branch, and method percentages?](#how-do-you-interpret-line-branch-and-method-percentages), rendered against the actual source instead of a flat console table.
+
+### What if the packages are installed but the percentages still don't show up?
+
+A short checklist for the remaining edge cases reported around this lesson:
+
+- **Mismatched Coverlet versions** — `coverlet.collector` and `coverlet.msbuild` drifting out of sync with each other can silently suppress the table; updating both to matching, current versions resolves it.
+- **Stale build artifacts** — running `dotnet build` once before `dotnet test` clears up cases where the run picks up a build that predates the Coverlet package references.
+- **An already-open `.csproj`** — adding a package through Visual Studio's NuGet UI while the `.csproj` is open in another editor can silently fail to save the new `<PackageReference>`; closing and reopening the file resolves it.
+- **Wrong project path** — `dotnet test` defaults to the current directory; running it from the solution root, from `StringManipulation` (the console app, not the test project), or from any folder other than `StringManipulation.Tests` produces a normal test run with zero coverage output, not an error.
+
+## Filtering Coverage with Include and ExcludeFromCodeCoverage
+
+When you run Coverlet for the first time, the percentage it reports can be misleading — it measures code you never intended to test, like console classes or presentation-layer utilities. This lesson covers `Include`, `ExcludeByAttribute`, and `ExcludeFromCodeCoverage` — the parameters that let your report reflect only actual business logic, continuing from [Troubleshooting Coverlet Coverage Output](#troubleshooting-coverlet-coverage-output).
+
+### Why isn't your initial coverage percentage realistic?
+
+Running `dotnet test /p:CollectCoverage=true` makes Coverlet calculate coverage for the **entire referenced module** — every class in the project under test, with no distinction between business logic and infrastructure code.
+
+In this repo, `StringManipulation` (see [Tech Stack](#tech-stack)) contains exactly that split:
+
+- `StringOperations` — the business logic, the class actually exercised by `StringOperationsTest.cs` (see [Features](#features)).
+- `Program` — the console menu loop from [Run the Console App](#run-the-console-app): it only prints prompts and reads `Console.ReadLine()` input. Nothing in `StringOperationsTest.cs` calls it, and nothing should — it has no business logic to validate.
+
+`Program` shouldn't count toward coverage, because it isn't part of the behavior the test suite is meant to validate. Left unfiltered, it dilutes the percentage with code that was never a target for testing in the first place.
+
+> **What does Coverlet measure by default?** Every class in the module referenced by the test project, with no distinction between business logic and infrastructure code — which is exactly why filtering it matters.
+
+### How do you filter by namespace with the Include parameter?
+
+The first technique filters from the command line, with no code changes. `Include` tells Coverlet which namespace to measure and discards everything else:
+
+```bash
+dotnet test /p:CollectCoverage=true /p:Include="[StringManipulation]StringManipulation.*"
+```
+
+Coverlet walks every class in the project and applies one rule: if the class belongs to the `StringManipulation` namespace, measure it; if it doesn't, skip it entirely. The report that comes back reflects only what you actually wanted to measure.
+
+> 📌 The assembly filter doesn't have to name `StringManipulation` explicitly — `/p:Include="[*]StringManipulation.*"` works the same way, with `[*]` matching any assembly. The explicit form is more precise when a solution has several test-covered projects; the wildcard form is the one most commonly seen in examples, since it works regardless of how the assembly happens to be named.
+
+> 📌 **This repo's classes split differently than the lesson's example.** `StringOperations` and `IFileReaderConnector` (see [Module 0 — Codebase](#module-0--codebase)) are declared inside `namespace StringManipulation { ... }`, so the filter above covers both. `Program.cs`, however, declares `internal class Program` with **no namespace block at all** — it sits in the global namespace, not inside `StringManipulation`. In this specific codebase, that means `Program` is already excluded from an `Include="[StringManipulation]StringManipulation.*"` filter without the filter doing any extra work; here, `Include` mostly confirms an existing boundary rather than actively carving `Program` out of a shared namespace.
+
+### How do you exclude classes with ExcludeFromCodeCoverage?
+
+The second option puts the decision in the code instead of the command — useful when you want to permanently flag which files should never count toward coverage.
+
+`ExcludeFromCodeCoverage` is an attribute from `System.Diagnostics.CodeAnalysis` that Coverlet recognizes out of the box. You place it above the class or method you want excluded:
+
+```csharp
+using System.Diagnostics.CodeAnalysis;
+
+[ExcludeFromCodeCoverage]
+internal class Program
+{
+    // console code
+}
+```
+
+The scope is flexible:
+
+- **On a class** — excludes every method and property inside it.
+- **On a method** — excludes only that specific function.
+- **Combined** — mark the class, then leave one method without the attribute if you still want that one measured.
+
+### How do you activate it from the command with ExcludeByAttribute?
+
+Once classes carry the attribute, a different Coverlet parameter switches the filter on:
+
+```bash
+dotnet test /p:CollectCoverage=true /p:ExcludeByAttribute="ExcludeFromCodeCoverage"
+```
+
+This tells Coverlet: ignore everything carrying that attribute, and measure coverage for the rest.
+
+> **When should you use Include versus ExcludeFromCodeCoverage?** Reach for `Include` when the filter is temporary, or scoped to a single command or CI run, without touching the source. Reach for `ExcludeFromCodeCoverage` when the exclusion is a permanent design decision that should travel with the code itself, regardless of who runs the command or how.
+
+The end result looks similar to the `Include` approach, but the responsibility for it now lives in the source code rather than the command line.
+
+### Can ExcludeFromCodeCoverage be applied to Main itself?
+
+Yes — class-level and method-level exclusion can be combined on the same type. Applied to this repo's own `Program` (see [`StringManipulation/Program.cs`](#module-0--codebase)), both attributes would look like this:
+
+```csharp
+using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
+using StringManipulation;
+
+[ExcludeFromCodeCoverage]
+internal class Program
+{
+    [ExcludeFromCodeCoverage]
+    private static void Main(string[] args)
+    {
+        // console code
+    }
+}
+```
+
+The class-level attribute already excludes everything inside `Program`, including `Main` — stacking the attribute on `Main` too is redundant once the class itself carries it, and only matters if you ever remove the class-level attribute while still wanting `Main` specifically excluded.
+
+### Does ExcludeFromCodeCoverage couple your production code to the test framework?
+
+No. `ExcludeFromCodeCoverage` lives in `System.Diagnostics.CodeAnalysis`, part of the base class library that ships with the .NET SDK itself — not in `xunit`, `Moq`, or any `coverlet.*` package (see [Tech Stack](#tech-stack)). Referencing it from `StringManipulation/Program.cs` wouldn't pull in a test-only dependency any more than using `System.Linq` would.
+
+> **Is there a `.gitignore`-style alternative to marking individual classes?** Yes — Coverlet also exposes an `Exclude` command-line parameter (the mirror image of `Include`) that filters out whole files or folders by path pattern, without touching the source at all. `Include`/`Exclude` and `ExcludeFromCodeCoverage` solve the same problem from two different angles: one lives in the command, the other lives in the code — see [When should you use Include versus ExcludeFromCodeCoverage?](#how-do-you-activate-it-from-the-command-with-excludebyattribute) for which one fits a given situation.
+
+### What coverage percentage should you actually aim for?
+
+Once the report only reflects real business logic, the next step is raising it by writing tests for every uncovered flow in your business functions.
+
+A reasonable target sits between **80% and 90%** coverage. That range buys you real quality assurance without sliding into the trap of chasing every trivial line (see [What is unit test coverage, and what is it for?](#what-is-unit-test-coverage-and-what-is-it-for) for why 100% usually isn't a realistic goal in the first place).
+
+The working loop is simple:
+
+1. Write a new test for an uncovered scenario.
+2. Run `dotnet test` with the coverage parameter.
+3. Confirm the percentage went up, and repeat until you reach the target range.
+
+> **What's the point of filtering coverage in Coverlet?** So the percentage reflects the real quality of your business logic, instead of being inflated or diluted by code you never intended to test in the first place.
+
+This filtering groundwork is also what makes the next step worthwhile: a full, visual coverage report instead of a flat console table.
+
+> 🔗 **Resource from this lesson:** [World/curso-unit-testing-csharp](https://github.com/World/curso-unit-testing-csharp) at branch `9-atributocoverlet`.
+
+## Visual Coverage Reports with ReportGenerator and FineCodeCoverage
+
+A console table of percentages is useful, but it can't show you *which* lines in *which* method are the gap. This lesson turns those numbers into something you can actually read: an HTML report generated with ReportGenerator, and a live view inside Visual Studio through the FineCodeCoverage extension — continuing from [Filtering Coverage with Include and ExcludeFromCodeCoverage](#filtering-coverage-with-include-and-excludefromcodecoverage).
+
+### How do you export coverage to a standard XML file?
+
+The first step is telling Coverlet to write its results in a format any tool can read, instead of just printing a table to the console:
+
+```bash
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+```
+
+Running it still prints the usual summary — tests passed, tests failed, coverage percentages — but it also drops a `coverage.cobertura.xml` file directly inside `StringManipulation.Tests/`, the test project's own folder. That's a different location than the `--collect:"XPlat Code Coverage"` route from [Is there a way to get coverage without coverlet.msbuild at all?](#is-there-a-way-to-get-coverage-without-coverletmsbuild-at-all), which nests the same kind of file under `TestResults/<run-id>/` instead — same file format, different command, different output path.
+
+> **What does the `coverage.cobertura.xml` file contain?** Per-method detail: which lines were covered, which branches were evaluated, and a `true`/`false` flag for whether each one was actually exercised. It's the raw material any visual report — HTML or otherwise — is built from.
+
+### Why use the Cobertura format instead of something else?
+
+Cobertura is the most widely adopted coverage format — not just in .NET, but across other languages and most CI platforms, which tend to accept it without any extra configuration. Settling on it now means that if this project's pipeline ever moves to a cloud CI provider, the coverage step doesn't need to be regenerated or reformatted — it already speaks the format the rest of the ecosystem expects.
+
+### How do you generate an HTML report with ReportGenerator?
+
+The XML is complete, but reading it by hand is impractical. `ReportGenerator` converts it into a browsable report; like `coverlet.console` (see [How do you install Coverlet.Console as a global tool?](#how-do-you-install-coverletconsole-as-a-global-tool)), it's a **global .NET tool**, not a project package, installed once per machine:
+
+```bash
+dotnet tool install -g dotnet-reportgenerator-globaltool
+```
+
+Once installed, running it takes two required parameters and one optional one:
+
+```bash
+reportgenerator -reports:"coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:Html
+```
+
+- **`-reports`** — the path to the `coverage.cobertura.xml` generated in the previous step.
+- **`-targetdir`** — the folder where the report should be written, e.g. `coverage-report`; it's created automatically if it doesn't exist.
+- **`-reporttypes`** — optional; the output format. `Html` is the easiest to read, though ReportGenerator also supports formats like `Badges` or `TextSummary`.
+
+Running it produces a `coverage-report` folder with everything the report needs. Opening `coverage-report/index.html` in a browser gives you a fully navigable report.
+
+### What information can you see in the HTML report?
+
+The report lets you drill into every class the test run touched. For `StringOperations` (see [Features](#features)), each method shows its own coverage percentage, which lines were hit, and which scenarios were never exercised.
+
+> 📌 **The same shape of gap exists in this repo today.** `GetStringLength` (see [Module 0 — Codebase](#module-0--codebase)) only has one test, `GetStringLength_Exception` (see [Which exceptions are worth covering with tests?](#which-exceptions-are-worth-covering-with-tests)) — it covers the `throw new ArgumentNullException()` branch, but no test ever calls `GetStringLength` with a real string to exercise the `return str.Length;` line. That's the same "happy path never tested" pattern the lesson describes, just on a method that returns an `int` instead of a `string`. `RemoveWhitespace` (see [Features](#features)) shows the more extreme version of the same gap: it's fully implemented, but since no test in `StringOperationsTest.cs` calls it at all (see [Practice challenge: testing `RemoveWhitespace`](#practice-challenge-testing-removewhitespace), still open), an HTML report run against this repo today would show it at zero coverage — not because the method is missing, but because nothing exercises it yet.
+
+> **What's a branch in code coverage?** Every possible execution path inside a method — the arms of an `if` or a `switch`. Branch coverage measures how many of those paths your tests actually exercised, the same metric introduced in [How do you interpret line, branch, and method percentages?](#how-do-you-interpret-line-branch-and-method-percentages).
+
+### How do you view coverage without leaving Visual Studio with FineCodeCoverage?
+
+If opening a browser every time feels heavy, the **FineCodeCoverage** extension — already named as an option back in [What tools exist to measure coverage in .NET?](#what-tools-exist-to-measure-coverage-in-net) — surfaces the same kind of information directly inside the IDE. Install it from Visual Studio's Extensions menu, then close and reopen the editor for it to register.
+
+You'll find it at **View > Other Windows > FineCodeCoverage**. From there you can:
+
+- Browse every analyzed class and drill into each test's detail.
+- See at a glance which classes are covered and which were left out.
+- Pull up a report without running a single command manually.
+
+> 📌 FineCodeCoverage doesn't reuse the `coverage.cobertura.xml` from the steps above — it builds its own report by running the whole project fresh, with no filters or exclusions applied by default.
+
+### How do you configure FineCodeCoverage to exclude classes?
+
+Open **Tools > Options** and find the FineCodeCoverage section. From there you choose which engine it runs underneath — Coverlet, OpenCover, or Microsoft's own — and apply filters by directory or by attribute.
+
+The key option is **`ExcludeByAttribute`**: the same idea as the command-line `/p:ExcludeByAttribute="ExcludeFromCodeCoverage"` from [How do you activate it from the command with ExcludeByAttribute?](#how-do-you-activate-it-from-the-command-with-excludebyattribute), just configured once through the UI instead of typed into every command. Pointing it at `ExcludeFromCodeCoverage` keeps `Program` (or any other class already marked with it) out of the percentage here too, without repeating the command-line flag.
+
+> **When should you use ReportGenerator versus FineCodeCoverage?** Use ReportGenerator when the report needs to travel — into a CI/CD pipeline, or shared as a portable HTML folder. Use FineCodeCoverage while actively developing, when what you need is immediate feedback inside Visual Studio rather than a file to hand off.
+
+Between the two, this repo now has two complementary paths to the same answer: one automatable and portable, the other wired straight into the editor.
+
+## What You Learned in This Course: From Asserts to Coverage
+
+Finishing a .NET unit-testing course with xUnit leaves you with a concrete toolbox: structuring tests, verifying results, simulating dependencies, and measuring coverage. This closing lesson ties together everything covered across this README — from [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit) through [Visual Coverage Reports with ReportGenerator and FineCodeCoverage](#visual-coverage-reports-with-reportgenerator-and-finecodecoverage) — and points at what to practice next.
+
+### What did you learn about unit testing in xUnit?
+
+The course moved through the pillars that hold up a real .NET testing strategy — not as disconnected topics, but as layers that build on each other:
+
+- Several testing libraries available in .NET, and why xUnit is one of the most widely used in the industry (see [Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit](#unit-testing-libraries-in-net-mstest-nunit-and-xunit)).
+- A first test project and a first unit test, following recognized good practices (see [Creating Your First Unit Test with xUnit](#creating-your-first-unit-test-with-xunit)).
+- xUnit's different assertion types, used to validate that code behaves as expected (see [Best Practices and Assert Types in xUnit](#best-practices-and-assert-types-in-xunit) and [Testing with StartsWith, Contains, and Throws](#testing-with-startswith-contains-and-throws)).
+- Complex scenarios handled with the Moq library, simulating external dependencies (see [Mocking Dependencies with Moq in .NET](#mocking-dependencies-with-moq-in-net), [Mocking ILogger with Moq in C#](#mocking-ilogger-with-moq-in-c), and [Simulating Dependencies and Behavior with Mock in Unit Tests](#simulating-dependencies-and-behavior-with-mock-in-unit-tests)).
+- Coverage analysis, used to spot functions and methods that were never actually tested (see [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net) through [Visual Coverage Reports with ReportGenerator and FineCodeCoverage](#visual-coverage-reports-with-reportgenerator-and-finecodecoverage)).
+
+That sequence has a clear logic: first you understand the framework, then you write the test, then you make it robust, and finally you measure how complete it really is.
+
+### Why do Mock and coverage matter in your tests?
+
+Unit tests don't live in a vacuum. When your code depends on databases, external services, or components that don't exist yet, you need a way to isolate it — that's what Moq is for: simulated objects that behave like real dependencies without ever executing them (see [What is a mock, and why do you need one in your tests?](#what-is-a-mock-and-why-do-you-need-one-in-your-tests)).
+
+> **What is the Mock library for in xUnit?** It imitates your project's dependencies, so you can test a unit of code in isolation without invoking real services.
+
+Coverage is the thermometer. It shows you what percentage of your code is actually exercised by tests, and — more importantly — where the gaps are. Without that measurement, it's easy to believe you're testing well while critical functions sit untouched, exactly the kind of blind spot [Why isn't your initial coverage percentage realistic?](#why-isnt-your-initial-coverage-percentage-realistic) and the [`GetStringLength`/`RemoveWhitespace` gap](#what-information-can-you-see-in-the-html-report) called out earlier in this README.
+
+> **What is coverage analysis?** The review that identifies which pieces of code — functions or methods — aren't covered by the tests you've already written.
+
+### How do you keep practicing after the course?
+
+The best way to make this stick is to get your hands dirty again, with two concrete exercises you can start on this repo right now:
+
+1. **Finish the tests left pending throughout the course.** This README already tracks them: [`RemoveWhitespace`](#practice-challenge-testing-removewhitespace), [`TruncateString`](#practice-challenge-testing-truncatestring), and collapsing `IsPalindrome_True`/`IsPalindrome_False` into a single [`[Theory]`](#practice-challenge-parameterizing-ispalindrome).
+2. **Create a new test project with a different library than xUnit, and replicate the same tests.** NUnit or MSTest (see [Unit Testing Libraries in .NET: MSTest, NUnit, and xUnit](#unit-testing-libraries-in-net-mstest-nunit-and-xunit)) are the natural candidates — the attribute and assertion mapping in [How do xUnit attributes translate to NUnit and MSTest?](#how-do-xunit-attributes-translate-to-nunit-and-mstest) is exactly the cheat sheet for that translation.
+
+Comparing syntax, configuration, and ergonomics between the two isn't just about learning a second library — it's about understanding *why* you'd choose one tool over another the next time a real project calls for that decision.
+
+### What topics might come up in a job interview?
+
+Several of the concepts covered are interview staples for .NET developers, worth keeping fresh:
+
+- The **AAA** structure (Arrange, Act, Assert) as the pattern for organizing tests (see [What is the AAA (Arrange-Act-Assert) structure?](#what-is-the-aaa-arrange-act-assert-structure)).
+- The **FIRST** principles that define what a healthy unit test looks like (see [What are the FIRST principles of testing?](#what-are-the-first-principles-of-testing)).
+- Using the **Moq** library to simulate dependencies (see [How do you use the Moq library to simulate dependencies in .NET?](#how-do-you-use-the-moq-library-to-simulate-dependencies-in-net)).
+- xUnit-specific features, like its assertion methods and test attributes (see [The Fact Attribute in Depth](#the-fact-attribute-in-depth) and [Parameterized Tests with Theory and InlineData](#parameterized-tests-with-theory-and-inlinedata)).
+
+> **What's the AAA structure in unit testing?** A pattern that organizes every test into three blocks: Arrange to set up data, Act to execute the behavior, and Assert to verify the result.
+
+Being able to walk through these with a code example is most of the way to a strong interview answer.
+
+### What's the next step to master testing in .NET?
+
+What comes next is open-ended. Integration tests, test doubles beyond mocks — fakes, stubs, spies — or wiring this suite into a CI/CD pipeline are all natural extensions, and every one of them builds directly on what's already in this repo's `StringManipulation.Tests` project.
+
 ## Module Roadmap
 
 | Module | Branch         | Topic                                   | Status        |
@@ -1123,6 +1669,7 @@ The `StringOperations` class exposes the following operations, available from th
 - `Microsoft.Extensions.Logging` `8.0.0` (+ Console provider) — structured logging
 - **xUnit** — introduced starting with Module 1 for unit testing
 - [Moq](https://github.com/devlooped/moq) `4.18.4` — mocking framework for test doubles, introduced in Module 6
+- [Coverlet](https://github.com/coverlet-coverage/coverlet) `3.1.2` (`coverlet.collector`) — cross-platform code coverage, bundled since Module 1; see [Test Coverage with Coverlet in .NET](#test-coverage-with-coverlet-in-net)
 
 ## Getting Started
 
