@@ -112,6 +112,12 @@ Each course module lives on its own branch and builds on top of the previous one
   - [How do you run the coverage command with dotnet test?](#how-do-you-run-the-coverage-command-with-dotnet-test)
   - [How do you interpret line, branch, and method percentages?](#how-do-you-interpret-line-branch-and-method-percentages)
   - [Why is the branches metric the most important one?](#why-is-the-branches-metric-the-most-important-one)
+- [Troubleshooting Coverlet Coverage Output](#troubleshooting-coverlet-coverage-output)
+  - [Why does dotnet test run but never print a coverage table?](#why-does-dotnet-test-run-but-never-print-a-coverage-table)
+  - [Why might the pinned coverlet.console version matter?](#why-might-the-pinned-coverletconsole-version-matter)
+  - [Is there a way to get coverage without coverlet.msbuild at all?](#is-there-a-way-to-get-coverage-without-coverletmsbuild-at-all)
+  - [How do you turn the raw XML report into a readable HTML report?](#how-do-you-turn-the-raw-xml-report-into-a-readable-html-report)
+  - [What if the packages are installed but the percentages still don't show up?](#what-if-the-packages-are-installed-but-the-percentages-still-dont-show-up)
 - [Module Roadmap](#module-roadmap)
 - [Project Structure](#project-structure)
   - [Module 0 — Codebase](#module-0--codebase)
@@ -1165,6 +1171,61 @@ Key points to remember:
 - `coverlet.collector` collects coverage during the test run and ships with the xUnit template; `coverlet.msbuild` is what surfaces that data through `dotnet test /p:CollectCoverage=true`; `coverlet.console` is a separate global CLI tool installed with `dotnet tool install`.
 - Line, method, and branch coverage measure three different things — method coverage is the most forgiving, branch coverage the strictest.
 - A high method-coverage percentage can mask a low branch-coverage percentage; branches are what actually tell you whether every `if` in your code has been exercised by a test.
+
+## Troubleshooting Coverlet Coverage Output
+
+The two most common snags after wiring up Coverlet aren't conceptual — they're operational: running the command from the wrong folder, or hitting a Coverlet package version that doesn't cooperate with the installed SDK. This section collects the fixes that consistently resolve them, continuing from [Running Coverlet and Reading Its Coverage Report](#running-coverlet-and-reading-its-coverage-report).
+
+### Why does dotnet test run but never print a coverage table?
+
+The single most common cause — confirmed against this very repo in [the previous section's callout](#how-do-you-run-the-coverage-command-with-dotnet-test) — is running the command from the wrong working directory. `dotnet test /p:CollectCoverage=true` has to run from inside the **test** project folder, `StringManipulation.Tests` here, not from the solution root or from the `StringManipulation` console project. If you'd rather not `cd`, point `dotnet test` straight at the test project's `.csproj` instead:
+
+```bash
+dotnet test StringManipulation.Tests/StringManipulation.Tests.csproj /p:CollectCoverage=true
+```
+
+The second most common cause is a missing or stale `coverlet.msbuild` reference (see [Which Coverlet packages do you actually need to install?](#which-coverlet-packages-do-you-actually-need-to-install)) — without it, `CollectCoverage=true` is silently ignored, exactly what this README's own callout found when testing the command against this repo's current `.csproj`. The fix: add the package, then **rebuild** with `dotnet build`. NuGet can fail to persist a new `<PackageReference>` if the `.csproj` was already open in an editor when the package was added, so closing and reopening it (or editing the XML directly, as in [Module 6 — Moq Library](#module-6--moq-library)) is worth trying too.
+
+### Why might the pinned coverlet.console version matter?
+
+NuGet's own "install" snippet for `coverlet.console` doesn't always resolve to a version that behaves correctly against a given SDK. Pinning an explicit version sidesteps that:
+
+```bash
+dotnet tool install --global coverlet.console --version 6.0.4
+```
+
+Since it's a **global tool** (see [How do you install Coverlet.Console as a global tool?](#how-do-you-install-coverletconsole-as-a-global-tool)), reinstalling with `--version` simply overwrites whatever version is currently registered — no project file is involved.
+
+### Is there a way to get coverage without coverlet.msbuild at all?
+
+Yes — `coverlet.collector`, the package this repo has had since [Module 1 — First Test](#module-1--first-test), already plugs into `dotnet test` through VSTest's own data-collector pipeline, with no need for `coverlet.msbuild` or the `/p:CollectCoverage=true` property:
+
+```bash
+dotnet test --collect:"XPlat Code Coverage"
+```
+
+This writes a `coverage.cobertura.xml` file under `StringManipulation.Tests/TestResults/<run-id>/` instead of printing a percentage table to the console. It's the standard .NET SDK approach, and it works with the packages this repo already references today — `coverlet.msbuild` is only needed for the inline console table from [Running Coverlet and Reading Its Coverage Report](#running-coverlet-and-reading-its-coverage-report).
+
+### How do you turn the raw XML report into a readable HTML report?
+
+The `coverage.cobertura.xml` produced by `--collect:"XPlat Code Coverage"` isn't meant to be read directly. `ReportGenerator`, installed as another global tool, turns it into a browsable HTML report:
+
+```bash
+dotnet tool install -g dotnet-reportgenerator-globaltool
+
+dotnet reportgenerator -reports:"./TestResults/**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
+```
+
+Opening `coveragereport/index.html` in a browser shows coverage line by line — the same line/branch/method breakdown from [How do you interpret line, branch, and method percentages?](#how-do-you-interpret-line-branch-and-method-percentages), rendered against the actual source instead of a flat console table.
+
+### What if the packages are installed but the percentages still don't show up?
+
+A short checklist for the remaining edge cases reported around this lesson:
+
+- **Mismatched Coverlet versions** — `coverlet.collector` and `coverlet.msbuild` drifting out of sync with each other can silently suppress the table; updating both to matching, current versions resolves it.
+- **Stale build artifacts** — running `dotnet build` once before `dotnet test` clears up cases where the run picks up a build that predates the Coverlet package references.
+- **An already-open `.csproj`** — adding a package through Visual Studio's NuGet UI while the `.csproj` is open in another editor can silently fail to save the new `<PackageReference>`; closing and reopening the file resolves it.
+- **Wrong project path** — `dotnet test` defaults to the current directory; running it from the solution root, from `StringManipulation` (the console app, not the test project), or from any folder other than `StringManipulation.Tests` produces a normal test run with zero coverage output, not an error.
 
 ## Module Roadmap
 
