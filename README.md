@@ -1609,7 +1609,14 @@ Branch [`4-theory-inlinedata`](https://github.com/CristianSifuentes/DotNetTestin
 
 ### Module 5 — Skip
 
-Branch [`5-skip`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/5-skip) makes the suite's smallest code change so far — a single attribute parameter — paired with the [The Skip Attribute in xUnit](#the-skip-attribute-in-xunit) lesson in the README. Rather than adding a new test, it pauses an existing one: `ConcatenateStrings` (see [Module 1 — First Test](#module-1--first-test)) now carries a documented `Skip` reason instead of running on every `dotnet test`.
+Branch [`5-skip`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/5-skip) ships **two commits that pull in different directions** — one pauses a test and documents `Skip`, the other has nothing to do with skipping at all. Diffing the branch's own base (the commit immediately before its first commit) against its tip isolates exactly what `5-skip` contributed, with nothing inherited from later merges mixed in: **133 insertions / 2 deletions in `README.md`, plus a 1-line change in `StringOperationsTest.cs`** — confirmed with `git diff --stat <base>..5-skip`, which reports exactly those two files touched in the entire repository.
+
+| Commit | Message | What it actually did |
+|--------|---------|------------------------|
+| `fe6f74a` | Adding information for The Skip Attribute in xUnit | Adds the [The Skip Attribute in xUnit](#the-skip-attribute-in-xunit) lesson to the README (`+96/-2` lines) **and** the only production-code change in the branch: `ConcatenateStrings`'s `[Fact]` becomes `[Fact(Skip = "This test is not valid at this time, TICKET-001")]` in `StringOperationsTest.cs` (`+1/-1` line). |
+| `44dba71` | Add How do xUnit, NUnit, and MSTest compare architecturally? and others sections | README-only (`+37/-0` lines). Adds three subsections — [How do xUnit, NUnit, and MSTest compare architecturally?](#how-do-xunit-nunit-and-mstest-compare-architecturally), [What are the architectural advantages of xUnit?](#what-are-the-architectural-advantages-of-xunit), and [What are the architectural disadvantages of xUnit?](#what-are-the-architectural-disadvantages-of-xunit) — under the **earlier** [Unit Testing Libraries in .NET](#unit-testing-libraries-in-net-mstest-nunit-and-xunit) section. None of it is about `Skip`; it backfills documentation depth into a topic two modules upstream while this branch was checked out. |
+
+Rather than adding a new test, the commit that *is* about this module pauses an existing one: `ConcatenateStrings` (see [Module 1 — First Test](#module-1--first-test)) now carries a documented `Skip` reason instead of running on every `dotnet test`.
 
 | File | Change |
 |------|--------|
@@ -1617,9 +1624,10 @@ Branch [`5-skip`](https://github.com/CristianSifuentes/DotNetTestingLab/tree/5-s
 
 **Evolutionary changes vs. Module 4:**
 
-- **Changed** — `StringOperationsTest.cs` only, and only on one line: the `[Fact]` attribute above `ConcatenateStrings`. No assertions, method bodies, `.csproj` files, or files under `StringManipulation/` were touched.
-- **Test count unchanged, runnable count down by one** — the suite still discovers the same 7 methods (5 `[Fact]`s + 1 `[Theory]` with 3 rows, plus the unused `UnitTest1.Test1`) from Module 4, but `dotnet test` now reports `ConcatenateStrings` as **skipped** rather than **passed** — the first test in the repo to carry that status.
+- **Changed** — `StringOperationsTest.cs` only, and only on one line: the `[Fact]` attribute above `ConcatenateStrings`. No assertions, method bodies, `.csproj` files, or any other file under `StringManipulation/` were touched — verified directly against `git diff --stat 4-theory-inlinedata 5-skip`.
+- **Test count unchanged, runnable count down by one** — the suite still discovers the same 7 methods (5 `[Fact]`s + 1 `[Theory]` with 3 rows, plus the unused `UnitTest1.Test1`) from Module 4 — 9 discoverable test results in total, confirmed against `StringOperationsTest.cs` at this branch's tip — but `dotnet test` now reports `ConcatenateStrings` as **skipped** rather than **passed**, the first test in the repo to carry that status.
 - **First use of a named Fact parameter** — every prior `[Fact]` in the suite used the bare attribute; this is the first to pass a named argument (`Skip`), the same mechanism documented for `DisplayName` in [What are the core characteristics of Fact?](#what-are-the-core-characteristics-of-fact).
+- **The branch's larger commit isn't about Skip at all** — of the 133 README lines `5-skip` adds, only 96 belong to the Skip lesson itself; the remaining 37 (`44dba71`) retroactively complete the xUnit/NUnit/MSTest architectural comparison in a section that predates this module by two branches. It's legitimate documentation work, but it means this branch's own history mixes one module's feature work with another module's retroactive polish — worth knowing before bisecting this repo's history by branch name alone.
 - **Ticket reference is a placeholder** — the message points at `TICKET-001`, a stand-in rather than an entry in a real Jira/Azure DevOps project, since this repo doesn't run one. The convention is what the lesson cares about — see [Why should you create a backlog ticket when you skip a test?](#why-should-you-create-a-backlog-ticket-when-you-skip-a-test) — the specific tracker is an implementation detail for a real project.
 - **Open item carried forward** — `ConcatenateStrings` was already flagged for its missing `// Arrange` comment back in [Module 2](#module-2--types-assert); that inconsistency is still present and now sits alongside the new `Skip` reason, untouched by this module.
 
