@@ -115,6 +115,33 @@ namespace StringManipulation.Tests
         }
 
         [Fact]
+        public void GetStringLength_Null_ThrowsArgumentNullException()
+        {
+            var strOperations = new StringOperations();
+
+            // Assert.Throws<T> is stricter than ThrowsAny: it requires the exact type.
+            // Use it when you care *which* exception is thrown, not just that it fails.
+            Assert.Throws<ArgumentNullException>(() => strOperations.GetStringLength(null));
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  4. TruncateString  ★ MOST IMPORTANT FOR BRANCH COVERAGE ★
+        //     This method has 4 paths. Each test covers a different one.
+        //     Previously, it had no tests => a huge gap in branch coverage.
+        // ════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public void TruncateString_MaxLengthZeroOrLess_ThrowsException()
+        {
+            // RAMA 1: maxLength <= 0
+            var strOperations = new StringOperations();
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => strOperations.TruncateString("hello", 0));
+        }
+
+
+
+        [Fact]
         public void QuantintyInWords() 
         {
             // Arrange
