@@ -9,22 +9,53 @@ using Microsoft.Extensions.Logging;
 
 namespace StringManipulation.Tests
 {
+    /// UNIT TESTING LAB - StringOperations
+    /// ===================================================
+    /// Each test is commented with the idea it demonstrates. Read the comments
+    /// in order and you will cover: AAA pattern, Fact vs. Theory, InlineData,
+    /// MemberData, exception testing, mocks (Setup / It.IsAny / Verify),
+    /// branch coverage, and the Skip attribute.
+    // </summary>
     public class StringOperationsTest
     {
-        [Fact(Skip = "This test is not valid at this time, TICKET-001")]
-        public void ConcatenateStrings()
+        // ══════════════════════════════════════════════════════════════════
+        // 1. ConcatenateStrings
+        // Demonstrates: the pure AAA pattern + the Skip attribute.
+        // ═════════════════════════════════════════════════════════════════
+        // Your original version had "permanent" Skip. Remember what
+        // we saw: Skip does NOT delete the test, it only temporarily omits it and must
+        // include a message explaining why. Here I leave it ACTIVE and
+        // working so that it counts towards coverage.
+        [Fact]
+        //[Fact(Skip = "This test is not valid at this time, TICKET-001")]
+        public void ConcatenateStrings_ReturnsBothWordsSeparatedBySpace()
         {
+            // Arrange  -> I get what I need ready.
             var strOperations = new StringOperations();
 
-            // Act
+            // Act      -> execute THE action under test (one line)
             var result = strOperations.ConcatenateStrings("Hello", "World");
 
-            // Assert
+            // Assert   -> I verify the expected result
             Assert.NotNull(result);
             Assert.NotEmpty(result);
             Assert.Equal("Hello World", result);
         }
 
+        // Example of how a properly used Skip would look (temporary and actual blocking).
+        // This one is indeed omitted, but the message clearly explains why and with which ticket.
+        [Fact(Skip = "Blocked by TICKET-001: pending definition of configurable separator.")]
+        public void ConcatenateStrings_WithCustomSeparator_Pending()
+        {
+            // When the functionality exists, remove the Skip and this will run.
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // 2. IsPalindrome
+        // Demonstrates: two facts for the two Boolean paths (true/false)
+        // and then how Compact them with a Theory. This is branch coverage.
+        // The method has an Equals that can return true or false.
+        // ═════════════════════════════════════════════════════════════════════════
         [Fact]
         public void IsPalindrome_True()
         {
@@ -49,6 +80,38 @@ namespace StringManipulation.Tests
 
             // Assert
             Assert.False(result);
+        }
+
+        // Same two cases as above + one extra (uppercase) in a single method.
+        // Theory + InlineData = one test, multiple data sets. Cleaner
+        // and easier to extend: just add a line and you have another case.
+        [Theory]
+        [InlineData("ama", true)]
+        [InlineData("Ama", true)]     // validates that it is case-insensitive
+        [InlineData("reconocer", true)]
+        [InlineData("hello", false)]
+        [InlineData("platzi", false)]
+        public void IsPalindrome_Theory(string input, bool expected)
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.IsPalindrome(input);
+            Assert.Equal(expected, result);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  3. GetStringLength
+        //     Demonstrates: testing the happy path AND the exception path.
+        //     If you only test one of the two, your BRANCH coverage remains low.
+        // ════════════════════════════════════════════════════════════════════
+        [Theory]
+        [InlineData("", 0)]
+        [InlineData("a", 1)]
+        [InlineData("hello", 5)]
+        public void GetStringLength_ReturnsCorrectLength(string input, int expected)
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.GetStringLength(input);
+            Assert.Equal(expected, result);
         }
 
         [Fact]
