@@ -102,7 +102,7 @@ namespace StringManipulation.Tests
         public void ReadFile()
         {
             var strOperations = new StringOperations();
-            var mockFileReader = new Mock<IFileReaderConector>();
+            var mockFileReader = new Mock<IFileReaderConnector>();
             mockFileReader.Setup(p => p.ReadString(It.IsAny<string>())).Returns("Reading file");
 
             var result = strOperations.ReadFile(mockFileReader.Object, "file2.txt");
