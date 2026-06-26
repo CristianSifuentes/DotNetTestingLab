@@ -133,11 +133,40 @@ namespace StringManipulation.Tests
         [Fact]
         public void TruncateString_MaxLengthZeroOrLess_ThrowsException()
         {
-            // RAMA 1: maxLength <= 0
+            // BRANCH 1: maxLength <= 0
             var strOperations = new StringOperations();
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => strOperations.TruncateString("hello", 0));
         }
+
+                [Fact]
+        public void TruncateString_MaxLengthGreaterThanInput_ReturnsFullString()
+        {
+            // BRANCH 2: maxLength >= length of the input -> returns the full value
+            var strOperations = new StringOperations();
+            var result = strOperations.TruncateString("hi", 10);
+            Assert.Equal("hi", result);
+        }
+
+        [Fact]
+        public void TruncateString_EmptyInput_ReturnsEmpty()
+        {
+            // branch 2 (another condition of the same OR): empty string
+            var strOperations = new StringOperations();
+            var result = strOperations.TruncateString("", 5);
+            Assert.Equal("", result);
+        }
+
+        [Fact]
+        public void TruncateString_NormalCase_TruncatesCorrectly()
+        {
+            // branch 3: t(another condition of the same OR): empty string
+
+            var strOperations = new StringOperations();
+            var result = strOperations.TruncateString("Hello World", 5);
+            Assert.Equal("Hello", result);
+        }
+
 
 
 
