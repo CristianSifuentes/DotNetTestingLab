@@ -167,6 +167,69 @@ namespace StringManipulation.Tests
             Assert.Equal("Hello", result);
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        //  5. Reverse String (it didn't have a test; we added one)
+        // ════════════════════════════════════════════════════════════════════
+
+        [Theory]
+        [InlineData("abc", "cba")]
+        [InlineData("a", "a")]
+        [InlineData("", "")]
+        [InlineData("platzi", "iztalp")]
+        public void ReverseString_Theory(string input, string expected)
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.ReverseString(input);
+            Assert.Equal(expected, result);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  6. Remove Whitespace (there was no test case; we added one)
+        // ════════════════════════════════════════════════════════════════════
+
+        [Theory]
+        [InlineData("a b c", "abc")]
+        [InlineData("  hola  ", "hola")]
+        [InlineData("sinespacios", "sinespacios")]
+        [InlineData("tab\tnueva\nlinea", "tabnuevalinea")] // also covers \t and \n
+        public void RemoveWhitespace_Theory(string input, string expected)
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.RemoveWhitespace(input);
+            Assert.Equal(expected, result);
+        }
+
+
+        // ════════════════════════════════════════════════════════════════════
+        //  7. Pluralize (there was no example; we added it)
+        // ════════════════════════════════════════════════════════════════════
+
+        [Theory]
+        [InlineData("cat", "cats")]
+        [InlineData("house", "houses")]
+        [InlineData("box", "boxes")]
+        public void Pluralize_Theory(string input, string expected)
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.Pluralize(input);
+            Assert.Equal(expected, result);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  8. QuantityInWords
+        //     Demonstrates: combining StartsWith + Contains (exactly the exam
+        //     question). Each assertion validates a different requirement of the result.
+        // ════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public void QuantintyInWords_StartsWithNumberAndContainsWord()
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.QuantintyInWords("cat", 10);
+
+            Assert.StartsWith("ten", result);  // starts with the number written out in words
+            Assert.Contains("cat", result);     // contains the word
+        }
 
 
 
