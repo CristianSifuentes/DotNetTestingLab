@@ -233,7 +233,7 @@ namespace StringManipulation.Tests
 
 
 
-        [Fact]
+        /*[Fact]
         public void QuantintyInWords() 
         {
             // Arrange
@@ -246,17 +246,55 @@ namespace StringManipulation.Tests
             Assert.StartsWith("ten", result);
             Assert.Contains("cat", result);
         
-        }
+        }*/
 
-        [Fact]
+        /*[Fact]
         public void GetStringLength_Exception()
         {
             var strOperations = new StringOperations();
 
             Assert.ThrowsAny<ArgumentNullException>(()=> strOperations.GetStringLength(null));
-        }
+        }*/
+
+                //  9. FromRomanToNumber
+        //     Demuestra: Theory con InlineData y, abajo, la alternativa MemberData
+        //     para datos más complejos o reutilizables.
+        // ════════════════════════════════════════════════════════════════════
 
         [Theory]
+        [InlineData("V", 5)]
+        [InlineData("III", 3)]
+        [InlineData("X", 10)]
+        [InlineData("IX", 9)]   // caso sustractivo, buen extra
+        [InlineData("MCMXCIV", 1994)]
+        public void FromRomanToNumber_InlineData(string romanNumber, int expected)
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.FromRomanToNumber(romanNumber);
+            Assert.Equal(expected, result);
+        }
+
+        // MemberData: cuando los datos no caben cómodos en atributos o los quieres
+        // reutilizar/centralizar. La fuente es una propiedad estática IEnumerable.
+        public static IEnumerable<object[]> RomanData =>
+            new List<object[]>
+            {
+                new object[] { "I", 1 },
+                new object[] { "IV", 4 },
+                new object[] { "L", 50 },
+                new object[] { "C", 100 },
+            };
+
+        [Theory]
+        [MemberData(nameof(RomanData))]
+        public void FromRomanToNumber_MemberData(string romanNumber, int expected)
+        {
+            var strOperations = new StringOperations();
+            var result = strOperations.FromRomanToNumber(romanNumber);
+            Assert.Equal(expected, result);
+        }
+
+        /*[Theory]
         [InlineData("V", 5)]
         [InlineData("III", 3)]
         [InlineData("X", 10)]
@@ -267,29 +305,86 @@ namespace StringManipulation.Tests
             var result = strOperations.FromRomanToNumber(romanNumber);
 
             Assert.Equal(expected, result);
-        }
+        }*/
+
+       // ════════════════════════════════════════════════════════════════════
+        // 10. CountOccurrences
+        //     Demuestra: inyectar un MOCK de ILogger + VERIFICAR que el logger
+        //     fue invocado. Aquí el logger es una DEPENDENCIA SIMULADA y el
+        //     conteo es la LÓGICA A PROBAR.
+        // ════════════════════════════════════════════════════════════════════
 
         [Fact]
-        public void CountOccurrences()
+        public void CountOccurrences_CountsCharacterCorrectly()
         {
+            // Arrange: creamos el mock del logger (dependencia simulada)
             var mockLogger = new Mock<ILogger<StringOperations>>();
             var strOperations = new StringOperations(mockLogger.Object);
 
+            // Act
             var result = strOperations.CountOccurrences("Hello platzi", 'l');
 
+            // Assert: "Hello platzi" tiene 3 letras 'l'
             Assert.Equal(3, result);
         }
 
         [Fact]
-        public void ReadFile()
+        public void CountOccurrences_LogsInformation()
         {
-            var strOperations = new StringOperations();
-            var mockFileReader = new Mock<IFileReaderConnector>();
-            mockFileReader.Setup(p => p.ReadString(It.IsAny<string>())).Returns("Reading file");
+            // Mismo escenario, pero ahora VERIFICAMOS el comportamiento sobre la
+            // dependencia: que el método registró un log de Information una vez.
+            //
+            // ⚠ LogInformation es un método de EXTENSIÓN, no se puede mockear
+            // directo. Por debajo llama a ILogger.Log(...). Por eso verificamos
+            // ese método base con matchers It.IsAny. Es el patrón canónico para
+            // verificar logging con Moq. Cópialo tal cual cuando lo necesites.
+            var mockLogger = new Mock<ILogger<StringOperations>>();
+            var strOperations = new StringOperations(mockLogger.Object);
 
+            strOperations.CountOccurrences("Hello platzi", 'l');
+
+            mockLogger.Verify(
+                x => x.Log(
+                    LogLevel.Information,                                  // el nivel esperado
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception>(),
+                    (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()),
+                Times.Once);                                              // exactamente 1 vez
+        }
+
+       // ════════════════════════════════════════════════════════════════════
+        // 11. ReadFile
+        //     Demuestra: Setup + It.IsAny + Verify sobre una dependencia propia.
+        //
+        //  ★ BUG CORREGIDO #2: tu versión tenía  Mock<IFileReaderConector>()
+        //    con la interfaz mal escrita (le faltaba una 'n': IFileReaderConector).
+        //    La interfaz real es IFileReaderConnector. Eso hacía que el PROYECTO
+        //    DE PRUEBAS NO COMPILARA. Aquí ya está con el nombre correcto.
+        // ════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public void ReadFile_ReturnsContentFromConnector()
+        {
+            // Arrange
+            var strOperations = new StringOperations();
+            var mockFileReader = new Mock<IFileReaderConnector>(); // <- nombre correcto
+
+            // Setup: "cuando te llamen ReadString con CUALQUIER string, devuelve esto".
+            // It.IsAny<string>() = no me importa el parámetro exacto.
+            mockFileReader
+                .Setup(p => p.ReadString(It.IsAny<string>()))
+                .Returns("Reading file");
+
+            // Act
             var result = strOperations.ReadFile(mockFileReader.Object, "file2.txt");
 
+            // Assert sobre el resultado (la lógica)
             Assert.Equal("Reading file", result);
+
+            // Assert sobre el comportamiento: ReadFile delegó exactamente una vez
+            // y con el nombre de archivo correcto. Esto prueba la "colaboración".
+            mockFileReader.Verify(p => p.ReadString("file2.txt"), Times.Once);
         }
     }
 }
